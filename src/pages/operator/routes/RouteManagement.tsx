@@ -76,7 +76,7 @@ const RouteManagement = () => {
       fetchRoutes();
       fetchSeasonalPricing();
     }
-  }, [operator]);
+  }, [operator, operator?.id]);
 
   useEffect(() => {
     if (selectedRouteForHistory) {
@@ -96,10 +96,19 @@ const RouteManagement = () => {
   };
 
   const fetchSeasonalPricing = async () => {
+    if (!operator) return;
+    // Get route IDs for this operator first
+    const { data: operatorRoutes } = await supabase.from('routes').select('id').eq('operator_id', operator.id);
+    const routeIds = operatorRoutes?.map(r => r.id) || [];
+    if (routeIds.length === 0) {
+      setSeasonalPricing([]);
+      return;
+    }
     const { data } = await supabase
-      .from("seasonal_pricing")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .from('seasonal_pricing')
+      .select('*')
+      .in('route_id', routeIds)
+      .order('created_at', { ascending: false });
     setSeasonalPricing(data || []);
   };
 
