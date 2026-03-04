@@ -482,7 +482,7 @@ $$;
 -- ============================================
 
 -- Function to check expiring documents and create notification
-CREATE OR NOT EXISTS FUNCTION public.check_expiring_documents()
+CREATE OR REPLACE FUNCTION public.check_expiring_documents()
 RETURNS void
 LANGUAGE plpgsql
 SET search_path = public
