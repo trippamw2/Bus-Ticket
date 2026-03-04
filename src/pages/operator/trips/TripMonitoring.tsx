@@ -68,7 +68,7 @@ const TripMonitoring = () => {
 
   useEffect(() => {
     if (operator) fetchTrips();
-  }, [operator]);
+  }, [operator, operator?.id]);
 
   // Real-time subscription
   useEffect(() => {
