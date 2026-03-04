@@ -380,7 +380,7 @@ const FleetManagement = () => {
                       <TableCell className="font-medium">{bus?.plate_number || 'Unknown'}</TableCell>
                       <TableCell className="capitalize">{log.maintenance_type.replace('_', ' ')}</TableCell>
                       <TableCell>{log.description || '-'}</TableCell>
-                      <TableCell>{log.cost ? `ZMW ${log.cost}` : '-'}</TableCell>
+                      <TableCell>{log.cost ? `MWK ${log.cost}` : '-'}</TableCell>
                       <TableCell>{log.performed_date || '-'}</TableCell>
                       <TableCell>{log.next_due_date || '-'}</TableCell>
                     </TableRow>);
@@ -455,7 +455,7 @@ const FleetManagement = () => {
               <SelectContent>{MAINTENANCE_TYPES.map(m => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}</SelectContent>
             </Select>
             <Input placeholder="Description" value={maintForm.description} onChange={e => setMaintForm({...maintForm, description: e.target.value})} />
-            <Input type="number" placeholder="Cost (ZMW)" value={maintForm.cost} onChange={e => setMaintForm({...maintForm, cost: e.target.value})} />
+            <Input type="number" placeholder="Cost (MWK)" value={maintForm.cost} onChange={e => setMaintForm({...maintForm, cost: e.target.value})} />
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2"><Label>Performed Date</Label><Input type="date" value={maintForm.performed_date} onChange={e => setMaintForm({...maintForm, performed_date: e.target.value})} /></div>
               <div className="space-y-2"><Label>Next Due Date</Label><Input type="date" value={maintForm.next_due_date} onChange={e => setMaintForm({...maintForm, next_due_date: e.target.value})} /></div>

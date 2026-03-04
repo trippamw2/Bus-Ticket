@@ -3,22 +3,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
 import { BarChart3, TrendingUp, Users, Bus, Route, Calendar, Download } from 'lucide-react';
-
-interface RouteAnalytics {
-  id: string;
-  route_id: string;
-  period_start: string;
-  period_end: string;
-  total_bookings: number;
-  total_revenue: number;
-  total_seats_available: number;
-  seats_sold: number;
-  load_factor: number | null;
-  cancellation_count: number;
-  avg_ticket_price: number | null;
-  routes?: { origin: string; destination: string };
-}
 
 interface DashboardStats {
   totalTrips: number;
@@ -56,14 +42,12 @@ export default function AnalyticsDashboard() {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - days);
 
-      // Fetch trip counts
       const { count: tripCount } = await supabase
         .from('trips')
         .select('*', { count: 'exact', head: true })
         .eq('operator_id', operator.id)
         .gte('travel_date', startDate.toISOString().split('T')[0]);
 
-      // Fetch bookings with revenue
       const { data: bookingsData } = await supabase
         .from('bookings')
         .select('*, trips(travel_date, routes(origin, destination))')
@@ -73,20 +57,17 @@ export default function AnalyticsDashboard() {
       const totalBookings = bookingsData?.length || 0;
       const totalRevenue = bookingsData?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0;
 
-      // Fetch route performance
       const { data: routeAnalytics } = await supabase
         .from('route_analytics')
         .select('*, routes(origin, destination)')
         .eq('routes.operator_id', operator.id)
         .gte('period_start', startDate.toISOString().split('T')[0]);
 
-      // Calculate average load factor
       const loadFactors = routeAnalytics?.map(r => r.load_factor).filter(Boolean) || [];
       const avgLoadFactor = loadFactors.length > 0
         ? loadFactors.reduce((a, b) => (a || 0) + (b || 0), 0) / loadFactors.length
         : 0;
 
-      // Group bookings by day
       const bookingsByDayMap: Record<string, { bookings: number; revenue: number }> = {};
       bookingsData?.forEach(booking => {
         const date = booking.trips?.travel_date;
@@ -104,7 +85,6 @@ export default function AnalyticsDashboard() {
         .sort((a, b) => a.date.localeCompare(b.date))
         .slice(-14);
 
-      // Top routes by revenue
       const routeRevenue: Record<string, { route: string; revenue: number; bookings: number }> = {};
       bookingsData?.forEach(booking => {
         const route = booking.trips?.routes;
@@ -138,9 +118,9 @@ export default function AnalyticsDashboard() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZM', {
+    return new Intl.NumberFormat('en-MW', {
       style: 'currency',
-      currency: 'ZMW',
+      currency: 'MWK',
       maximumFractionDigits: 0,
     }).format(amount);
   };
@@ -170,7 +150,6 @@ export default function AnalyticsDashboard() {
         </div>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -214,9 +193,7 @@ export default function AnalyticsDashboard() {
         </Card>
       </div>
 
-      {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Routes */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -251,7 +228,6 @@ export default function AnalyticsDashboard() {
           </CardContent>
         </Card>
 
-        {/* Bookings Trend */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -284,7 +260,6 @@ export default function AnalyticsDashboard() {
         </Card>
       </div>
 
-      {/* Performance Metrics */}
       <Card>
         <CardHeader>
           <CardTitle>Performance Metrics</CardTitle>

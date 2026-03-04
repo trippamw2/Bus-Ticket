@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DollarSign, TrendingUp, TrendingDown, Download, Calendar } from 'lucide-react';
 
 interface Settlement {
@@ -23,10 +22,21 @@ interface Settlement {
   created_at: string;
 }
 
+interface PlatformSettings {
+  default_commission: number;
+  cancellation_fee: number;
+  change_fee: number;
+}
+
 export default function FinanceDashboard() {
   const { operator } = useAuth();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({
+    default_commission: 10,
+    cancellation_fee: 0,
+    change_fee: 0,
+  });
   const [stats, setStats] = useState({
     totalRevenue: 0,
     totalCommission: 0,
@@ -39,8 +49,29 @@ export default function FinanceDashboard() {
   useEffect(() => {
     if (operator) {
       fetchSettlements();
+      fetchPlatformSettings();
     }
   }, [operator]);
+
+  const fetchPlatformSettings = async () => {
+    try {
+      const { data } = await supabase
+        .from('platform_settings')
+        .select('*')
+        .limit(1)
+        .single();
+      
+      if (data) {
+        setPlatformSettings({
+          default_commission: data.default_commission || 10,
+          cancellation_fee: data.cancellation_fee || 0,
+          change_fee: data.change_fee || 0,
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching platform settings:', err);
+    }
+  };
 
   const fetchSettlements = async () => {
     if (!operator) return;
@@ -56,7 +87,6 @@ export default function FinanceDashboard() {
       if (error) throw error;
       setSettlements(data || []);
 
-      // Calculate stats
       const totals = (data || []).reduce((acc, s) => ({
         totalRevenue: acc.totalRevenue + s.gross_amount,
         totalCommission: acc.totalCommission + s.commission_amount,
@@ -81,9 +111,9 @@ export default function FinanceDashboard() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZM', {
+    return new Intl.NumberFormat('en-MW', {
       style: 'currency',
-      currency: 'ZMW',
+      currency: 'MWK',
     }).format(amount);
   };
 
@@ -98,6 +128,8 @@ export default function FinanceDashboard() {
     return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
   };
 
+  const commissionPercent = operator?.commission_percent || platformSettings.default_commission;
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -111,7 +143,6 @@ export default function FinanceDashboard() {
         </Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -130,7 +161,7 @@ export default function FinanceDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalCommission)}</div>
-            <p className="text-xs text-muted-foreground">8% platform fee</p>
+            <p className="text-xs text-muted-foreground">{commissionPercent}% platform fee</p>
           </CardContent>
         </Card>
         <Card>
@@ -140,7 +171,7 @@ export default function FinanceDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{formatCurrency(stats.totalAirtelFees + stats.totalVat)}</div>
-            <p className="text-xs text-muted-foreground">2% + 800 ZMW VAT</p>
+            <p className="text-xs text-muted-foreground">2% + 800 MWK VAT</p>
           </CardContent>
         </Card>
         <Card>
@@ -155,7 +186,6 @@ export default function FinanceDashboard() {
         </Card>
       </div>
 
-      {/* Fee Breakdown */}
       <Card>
         <CardHeader>
           <CardTitle>Fee Breakdown</CardTitle>
@@ -168,7 +198,7 @@ export default function FinanceDashboard() {
               <span className="font-medium">{formatCurrency(stats.totalRevenue)}</span>
             </div>
             <div className="flex justify-between items-center text-muted-foreground">
-              <span>- Platform Commission (8%)</span>
+              <span>- Platform Commission ({commissionPercent}%)</span>
               <span>- {formatCurrency(stats.totalCommission)}</span>
             </div>
             <div className="flex justify-between items-center text-muted-foreground">
@@ -176,7 +206,7 @@ export default function FinanceDashboard() {
               <span>- {formatCurrency(stats.totalAirtelFees)}</span>
             </div>
             <div className="flex justify-between items-center text-muted-foreground">
-              <span>- VAT (800 ZMW per transaction)</span>
+              <span>- VAT (800 MWK per transaction)</span>
               <span>- {formatCurrency(stats.totalVat)}</span>
             </div>
             <div className="border-t pt-4 flex justify-between items-center">
@@ -187,7 +217,6 @@ export default function FinanceDashboard() {
         </CardContent>
       </Card>
 
-      {/* Settlement History */}
       <Card>
         <CardHeader>
           <CardTitle>Settlement History</CardTitle>

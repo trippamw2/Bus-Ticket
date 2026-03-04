@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Wallet, Clock, CheckCircle, AlertCircle, ArrowUpRight, ArrowDownRight } from 'lucide-react';
@@ -42,7 +41,6 @@ export default function WalletDashboard() {
     if (!operator) return;
     setLoading(true);
     try {
-      // Fetch wallet
       const { data: walletData, error: walletError } = await supabase
         .from('operator_wallets')
         .select('*')
@@ -52,31 +50,27 @@ export default function WalletDashboard() {
       if (walletError && walletError.code !== 'PGRST116') throw walletError;
       setWallet(walletData);
 
-      // If no wallet, create one
       if (!walletData) {
-        const { data: newWallet, error: createError } = await supabase
+        const { data: newWallet } = await supabase
           .from('operator_wallets')
           .insert({ operator_id: operator.id })
           .select()
           .single();
         
-        if (!createError && newWallet) {
+        if (newWallet) {
           setWallet(newWallet);
         }
       }
 
-      // Fetch transactions if wallet exists
       if (walletData) {
-        const { data: txns, error: txnError } = await supabase
+        const { data: txns } = await supabase
           .from('wallet_transactions')
           .select('*')
           .eq('wallet_id', walletData.id)
           .order('created_at', { ascending: false })
           .limit(50);
 
-        if (!txnError) {
-          setTransactions(txns || []);
-        }
+        setTransactions(txns || []);
       }
     } catch (err) {
       console.error('Error fetching wallet:', err);
@@ -86,9 +80,9 @@ export default function WalletDashboard() {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-ZM', {
+    return new Intl.NumberFormat('en-MW', {
       style: 'currency',
-      currency: 'ZMW',
+      currency: 'MWK',
     }).format(amount || 0);
   };
 
@@ -119,7 +113,6 @@ export default function WalletDashboard() {
         <p className="text-muted-foreground">Track your earnings and payouts</p>
       </div>
 
-      {/* Wallet Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-primary text-primary-foreground">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -166,7 +159,6 @@ export default function WalletDashboard() {
         </Card>
       </div>
 
-      {/* Settlement Schedule Info */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -193,7 +185,6 @@ export default function WalletDashboard() {
         </CardContent>
       </Card>
 
-      {/* Transaction History */}
       <Card>
         <CardHeader>
           <CardTitle>Transaction History</CardTitle>
@@ -220,18 +211,14 @@ export default function WalletDashboard() {
               <TableBody>
                 {transactions.map((txn) => (
                   <TableRow key={txn.id}>
-                    <TableCell>
-                      {new Date(txn.created_at).toLocaleDateString()}
-                    </TableCell>
+                    <TableCell>{new Date(txn.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getTransactionIcon(txn.type)}
                         <span className="capitalize">{txn.type}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {txn.description || '-'}
-                    </TableCell>
+                    <TableCell className="text-muted-foreground">{txn.description || '-'}</TableCell>
                     <TableCell className={txn.type.includes('credit') ? 'text-green-600' : 'text-red-600'}>
                       {txn.type.includes('credit') ? '+' : '-'}{formatCurrency(txn.amount)}
                     </TableCell>
