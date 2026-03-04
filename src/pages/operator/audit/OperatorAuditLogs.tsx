@@ -2,11 +2,13 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { FileText, Search, Download, User, Clock } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface AuditLog {
   id: string;
@@ -49,7 +51,7 @@ export default function OperatorAuditLogs() {
     if (operator) {
       fetchAuditLogs();
     }
-  }, [operator]);
+  }, [operator, operator?.id]);
 
   const fetchAuditLogs = async () => {
     if (!operator) return;
@@ -58,12 +60,9 @@ export default function OperatorAuditLogs() {
       const { data, error } = await supabase
         .from('operator_audit_logs')
         .select('*, operator_users(full_name)')
-        .eq('operator_id', operator.id)
         .order('created_at', { ascending: false })
         .limit(100);
-
       if (error) throw error;
-      setLogs(data || []);
     } catch (err) {
       console.error('Error fetching audit logs:', err);
     } finally {
@@ -98,6 +97,26 @@ export default function OperatorAuditLogs() {
 
   const uniqueActions = Array.from(new Set(logs.map(l => l.action)));
 
+  const handleExportLogs = () => {
+    const headers = ['Timestamp', 'User', 'Action', 'Entity', 'Details', 'IP Address'];
+    const rows = filteredLogs.map(log => [
+      new Date(log.created_at).toLocaleString(),
+      log.operator_users?.full_name || 'System',
+      ACTION_LABELS[log.action] || log.action,
+      log.entity_type || '-',
+      log.details ? JSON.stringify(log.details) : '-',
+      log.ip_address || '-',
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.map(c => `"${c}"`).join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `audit_logs_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success('Audit logs exported successfully');
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -105,7 +124,7 @@ export default function OperatorAuditLogs() {
           <h1 className="text-3xl font-bold">Audit Logs</h1>
           <p className="text-muted-foreground">Track all activities in your account</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExportLogs}>
           <Download className="mr-2 h-4 w-4" />
           Export Logs
         </Button>

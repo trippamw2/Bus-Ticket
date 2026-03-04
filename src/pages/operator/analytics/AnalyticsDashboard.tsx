@@ -32,7 +32,7 @@ export default function AnalyticsDashboard() {
     if (operator) {
       fetchAnalytics();
     }
-  }, [operator, period]);
+  }, [operator, period, operator?.id]);
 
   const fetchAnalytics = async () => {
     if (!operator) return;
@@ -57,16 +57,16 @@ export default function AnalyticsDashboard() {
       const totalBookings = bookingsData?.length || 0;
       const totalRevenue = bookingsData?.reduce((sum, b) => sum + (b.amount || 0), 0) || 0;
 
-      const { data: routeAnalytics } = await supabase
-        .from('route_analytics')
-        .select('*, routes(origin, destination)')
-        .eq('routes.operator_id', operator.id)
-        .gte('period_start', startDate.toISOString().split('T')[0]);
+      // Calculate load factor from trips and bookings directly
+      const { data: tripsData } = await supabase
+        .from('trips')
+        .select('id, total_seats, available_seats')
+        .eq('operator_id', operator.id)
+        .gte('travel_date', startDate.toISOString().split('T')[0]);
 
-      const loadFactors = routeAnalytics?.map(r => r.load_factor).filter(Boolean) || [];
-      const avgLoadFactor = loadFactors.length > 0
-        ? loadFactors.reduce((a, b) => (a || 0) + (b || 0), 0) / loadFactors.length
-        : 0;
+      const totalSeats = tripsData?.reduce((sum, t) => sum + (t.total_seats || 0), 0) || 0;
+      const bookedSeats = tripsData?.reduce((sum, t) => sum + ((t.total_seats || 0) - (t.available_seats || 0)), 0) || 0;
+      const avgLoadFactor = totalSeats > 0 ? (bookedSeats / totalSeats) * 100 : 0;
 
       const bookingsByDayMap: Record<string, { bookings: number; revenue: number }> = {};
       bookingsData?.forEach(booking => {
@@ -125,6 +125,30 @@ export default function AnalyticsDashboard() {
     }).format(amount);
   };
 
+  const handleExport = () => {
+    // Export analytics data to CSV
+    const headers = ['Metric', 'Value'];
+    const rows = [
+      ['Total Trips', stats.totalTrips],
+      ['Total Bookings', stats.totalBookings],
+      ['Total Revenue', stats.totalRevenue],
+      ['Average Load Factor', `${stats.avgLoadFactor}%`],
+    ];
+
+    // Add top routes
+    stats.topRoutes.forEach((route, i) => {
+      rows.push([`Route ${i + 1}: ${route.route}`, `MWK ${route.revenue} (${route.bookings} bookings)`]);
+    });
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `analytics_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+  };
+
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -143,7 +167,7 @@ export default function AnalyticsDashboard() {
               <SelectItem value="90">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline">
+          <Button variant="outline" onClick={handleExport}>
             <Download className="mr-2 h-4 w-4" />
             Export
           </Button>

@@ -306,20 +306,17 @@ export default function FinanceDashboard() {
                     <TableCell>{formatCurrency(settlement.gross_amount)}</TableCell>
                     <TableCell className="text-muted-foreground">-{formatCurrency(settlement.commission_amount)}</TableCell>
                     <TableCell className="text-muted-foreground">-{formatCurrency(settlement.airtel_fee + settlement.vat_amount)}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(settlement.net_amount)}</TableCell>
                     <TableCell>{getStatusBadge(settlement.status)}</TableCell>
                     <TableCell>
-                      {settlement.paid_at 
-                        ? new Date(settlement.paid_at).toLocaleDateString() 
-                        : '-'}
+                      {settlement.paid_at ? new Date(settlement.paid_at).toLocaleDateString() : '-'}
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
           )}
-        HH|        </CardContent>
-TM|      </Card>
+        </CardContent>
+      </Card>
 
       {/* Recent Revenue */}
       <Card>
