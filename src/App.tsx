@@ -28,9 +28,7 @@ import WalletDashboard from "./pages/operator/wallet/WalletDashboard";
 import AnalyticsDashboard from "./pages/operator/analytics/AnalyticsDashboard";
 import OperatorAuditLogs from "./pages/operator/audit/OperatorAuditLogs";
 import { OperatorUserProvider } from "./contexts/OperatorUserContext";
-import ReportsDashboard from "./pages/admin/reports/ReportsDashboard";
-import AuditLogs from "./pages/admin/audit/AuditLogs";
-import NotFound from "./pages/NotFound";
+
 
 const queryClient = new QueryClient();
 
@@ -101,18 +99,7 @@ function AppRoutes() {
         <Route path="analytics" element={<AnalyticsDashboard />} />
         <Route path="audit" element={<OperatorAuditLogs />} />
       </Route>
-      <Route path="/operator" element={
-        <OperatorProtectedRoute>
-          <OperatorDashboard />
-        </OperatorProtectedRoute>
-      }>
-        <Route index element={<Navigate to="/operator/dashboard" replace />} />
-        <Route path="dashboard" element={<DashboardHome />} />
-        <Route path="fleet" element={<FleetManagement />} />
-        <Route path="routes" element={<RouteManagement />} />
-        <Route path="trips/create" element={<CreateTrip />} />
-        <Route path="trips" element={<TripMonitoring />} />
-      </Route>
+
       
       {/* Admin Auth */}
       <Route path="/admin/login" element={<AdminLogin />} />

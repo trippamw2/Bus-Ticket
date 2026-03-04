@@ -43,7 +43,7 @@ export default function OrganizationSettings() {
       setContactEmail(operator.contact_email || '');
       fetchUsers(operator.id);
     }
-  }, [operator, fetchUsers]);
+  }, [operator, operator?.id, fetchUsers]);
 
   const handleSaveProfile = async () => {
     if (!operator) return;
@@ -61,9 +61,13 @@ export default function OrganizationSettings() {
         })
         .eq('id', operator.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error saving profile:', error);
+        throw error;
+      }
       toast.success('Company profile updated successfully');
     } catch (err) {
+      console.error('Error saving profile:', err);
       toast.error('Failed to update profile');
     } finally {
       setSaving(false);
