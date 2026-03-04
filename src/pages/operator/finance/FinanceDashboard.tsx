@@ -45,13 +45,15 @@ export default function FinanceDashboard() {
     netPayable: 0,
     pendingSettlements: 0,
   });
-
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
   useEffect(() => {
     if (operator) {
       fetchSettlements();
       fetchPlatformSettings();
+      fetchRevenueData();
     }
-  }, [operator]);
+  }, [operator, operator?.id]);
 
   const fetchPlatformSettings = async () => {
     try {
@@ -110,6 +112,55 @@ export default function FinanceDashboard() {
     }
   };
 
+  const fetchRevenueData = async () => {
+    if (!operator) return;
+    try {
+      // Fetch recent paid bookings for this operator
+      const { data: bookings } = await supabase
+        .from('bookings')
+        .select(`
+          id,
+          amount,
+          status,
+          created_at,
+          trips:trips(route_id, travel_date, routes:routes(origin, destination))
+        `)
+        .eq('status', 'paid')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (bookings) {
+        setRecentBookings(bookings);
+      }
+    } catch (err) {
+      console.error('Error fetching revenue data:', err);
+    }
+  };
+
+  const handleExport = () => {
+    // Export settlements to CSV
+    const headers = ['Period Start', 'Period End', 'Gross Amount', 'Commission', 'Airtel Fee', 'VAT', 'Net Amount', 'Status', 'Paid Date'];
+    const rows = settlements.map(s => [
+      s.settlement_period_start,
+      s.settlement_period_end,
+      s.gross_amount,
+      s.commission_amount,
+      s.airtel_fee,
+      s.vat_amount,
+      s.net_amount,
+      s.status,
+      s.paid_at || '-',
+    ]);
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `settlements_${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    toast.success('Statement exported successfully');
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-MW', {
       style: 'currency',
@@ -137,7 +188,7 @@ export default function FinanceDashboard() {
           <h1 className="text-3xl font-bold">Financial Dashboard</h1>
           <p className="text-muted-foreground">Track revenue, fees, and settlements</p>
         </div>
-        <Button variant="outline">
+        <Button variant="outline" onClick={handleExport}>
           <Download className="mr-2 h-4 w-4" />
           Export Statement
         </Button>
@@ -262,6 +313,42 @@ export default function FinanceDashboard() {
                         ? new Date(settlement.paid_at).toLocaleDateString() 
                         : '-'}
                     </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        HH|        </CardContent>
+TM|      </Card>
+
+      {/* Recent Revenue */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Revenue</CardTitle>
+          <CardDescription>Latest paid bookings</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentBookings.length === 0 ? (
+            <div className="text-center py-4 text-muted-foreground">
+              No recent revenue data
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Route</TableHead>
+                  <TableHead>Amount</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentBookings.slice(0, 10).map((booking: any) => (
+                  <TableRow key={booking.id}>
+                    <TableCell>{new Date(booking.created_at).toLocaleDateString()}</TableCell>
+                    <TableCell>{booking.trips?.routes?.origin} → {booking.trips?.routes?.destination}</TableCell>
+                    <TableCell className="font-medium">{formatCurrency(booking.amount)}</TableCell>
+                    <TableCell><Badge variant="default">Paid</Badge></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
