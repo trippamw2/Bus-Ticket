@@ -106,7 +106,7 @@ const FleetManagement = () => {
       fetchDocuments();
       fetchMaintenanceLogs();
     }
-  }, [operator]);
+  }, [operator, operator?.id]);
 
   const fetchBuses = async () => {
     if (!operator) return;
@@ -130,21 +130,38 @@ const FleetManagement = () => {
   };
 
   const fetchDocuments = async () => {
+    if (!operator) return;
+    // First get bus IDs for this operator
+    const { data: operatorBuses } = await supabase.from('buses').select('id').eq('operator_id', operator.id);
+    const busIds = operatorBuses?.map(b => b.id) || [];
+    if (busIds.length === 0) {
+      setDocuments([]);
+      return;
+    }
     const { data } = await supabase
-      .from("bus_documents")
-      .select("*")
-      .order("created_at", { ascending: false });
+      .from('bus_documents')
+      .select('*')
+      .in('bus_id', busIds)
+      .order('created_at', { ascending: false });
     setDocuments(data || []);
   };
 
   const fetchMaintenanceLogs = async () => {
+    if (!operator) return;
+    // First get bus IDs for this operator
+    const { data: operatorBuses } = await supabase.from('buses').select('id').eq('operator_id', operator.id);
+    const busIds = operatorBuses?.map(b => b.id) || [];
+    if (busIds.length === 0) {
+      setMaintenanceLogs([]);
+      return;
+    }
     const { data } = await supabase
-      .from("maintenance_logs")
-      .select("*")
-      .order("performed_date", { ascending: false });
+      .from('maintenance_logs')
+      .select('*')
+      .in('bus_id', busIds)
+      .order('performed_date', { ascending: false });
     setMaintenanceLogs(data || []);
   };
-
   // Bus operations
   const openAddBus = () => { setEditBus(null); setPlate(""); setCapacity(""); setDialogOpen(true); };
   const openEditBus = (bus: Bus) => { setEditBus(bus); setPlate(bus.plate_number); setCapacity(String(bus.capacity)); setDialogOpen(true); };
