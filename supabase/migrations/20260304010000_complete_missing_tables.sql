@@ -8,6 +8,28 @@
 -- ============================================
 
 -- ============================================
+-- BusLink Complete Database Schema - Missing Tables
+-- This migration adds missing tables for:
+-- - Wallet operations, Settlements
+-- - Fleet operations, Seasonal pricing
+-- Note: Uses DROP IF EXISTS for safe re-runs
+-- ============================================
+
+-- ============================================
+-- 1. WALLET OPERATIONS
+-- ============================================
+
+-- Drop existing tables for clean re-runs
+DROP TABLE IF EXISTS public.operator_wallets CASCADE;
+DROP TABLE IF EXISTS public.wallet_transactions CASCADE;
+DROP TABLE IF EXISTS public.wallet_withdrawal_requests CASCADE;
+DROP TABLE IF EXISTS public.settlements CASCADE;
+DROP TABLE IF EXISTS public.drivers CASCADE;
+DROP TABLE IF EXISTS public.bus_documents CASCADE;
+DROP TABLE IF EXISTS public.maintenance_logs CASCADE;
+DROP TABLE IF EXISTS public.trip_assignments CASCADE;
+DROP TABLE IF EXISTS public.seasonal_pricing CASCADE;
+DROP TABLE IF EXISTS public.route_price_history CASCADE;
 -- 1. WALLET OPERATIONS
 -- ============================================
 

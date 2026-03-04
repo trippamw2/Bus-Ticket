@@ -3,6 +3,11 @@
 -- ============================================
 
 -- 1. Operator Users table (staff accounts for operators)
+-- Drop if exists to handle re-runs
+DROP TABLE IF EXISTS public.operator_users CASCADE;
+DROP TABLE IF EXISTS public.operator_audit_logs CASCADE;
+
+CREATE TABLE public.operator_users (
 CREATE TABLE public.operator_users (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   operator_id UUID NOT NULL REFERENCES public.operators(id) ON DELETE CASCADE,
