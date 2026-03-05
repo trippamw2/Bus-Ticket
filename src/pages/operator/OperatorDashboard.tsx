@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   Bus, Route, Calendar, Users, Menu, X, LogOut, LayoutDashboard, Plus,
-  Wallet, BarChart3, Settings, Building2, FileText, DollarSign
+  Wallet, BarChart3, Settings, Building2, FileText, DollarSign,
+  Gift, TrendingUp, ShieldAlert, CalendarClock, UsersRound, Bell, Armchair
 } from 'lucide-react';
 
 const OperatorDashboard = () => {
@@ -26,9 +27,22 @@ const OperatorDashboard = () => {
     { path: '/operator/routes', label: 'Routes', icon: Route },
     { path: '/operator/trips/create', label: 'Schedule Trip', icon: Plus },
     { path: '/operator/trips', label: 'Trip Monitor', icon: Users },
+    { path: '/operator/trips/cancellation', label: 'Trip Cancellation', icon: CalendarClock },
+    { path: '/operator/trips/assignment', label: 'Driver Assignment', icon: UsersRound },
+    { path: '/operator/bookings/seat-selection', label: 'Seat Selection', icon: Armchair },
+    { path: '/operator/bookings/passenger-manifest', label: 'Passenger Manifest', icon: Users },
+    { path: '/operator/routes/pricing', label: 'Price History', icon: TrendingUp },
+    { path: '/operator/fleet/capacity', label: 'Bus Capacity', icon: Bus },
+    { path: '/operator/fleet/driver-alerts', label: 'License Alerts', icon: FileText },
+    { path: '/operator/fleet/document-alerts', label: 'Document Alerts', icon: FileText },
+    { path: '/operator/fleet/maintenance', label: 'Maintenance', icon: Calendar },
     { path: '/operator/finance', label: 'Finance', icon: DollarSign },
+    { path: '/operator/finance/ledger', label: 'Ledger', icon: FileText },
     { path: '/operator/wallet', label: 'Wallet', icon: Wallet },
+    { path: '/operator/loyalty', label: 'Loyalty', icon: Gift },
+    { path: '/operator/notifications', label: 'Notifications', icon: Bell },
     { path: '/operator/analytics', label: 'Analytics', icon: BarChart3 },
+    { path: '/operator/security', label: 'Security', icon: ShieldAlert },
     { path: '/operator/audit', label: 'Audit Logs', icon: FileText },
   ];
 

@@ -27,6 +27,19 @@ import FinanceDashboard from "./pages/operator/finance/FinanceDashboard";
 import WalletDashboard from "./pages/operator/wallet/WalletDashboard";
 import AnalyticsDashboard from "./pages/operator/analytics/AnalyticsDashboard";
 import OperatorAuditLogs from "./pages/operator/audit/OperatorAuditLogs";
+import SeatSelection from "./pages/operator/bookings/SeatSelection";
+import PassengerManifest from "./pages/operator/bookings/PassengerManifest";
+import TripCancellation from "./pages/operator/trips/TripCancellation";
+import NotificationsCenter from "./pages/operator/notifications/NotificationsCenter";
+import LoyaltyPoints from "./pages/operator/loyalty/LoyaltyPoints";
+import PriceHistory from "./pages/operator/routes/PriceHistory";
+import BusCapacityConfig from "./pages/operator/fleet/BusCapacityConfig";
+import DriverLicenseAlerts from "./pages/operator/fleet/DriverLicenseAlerts";
+import FinancialLedger from "./pages/operator/finance/FinancialLedger";
+import DriverTripAssignment from "./pages/operator/trips/DriverTripAssignment";
+import DocumentExpiryAlerts from "./pages/operator/fleet/DocumentExpiryAlerts";
+import MaintenanceScheduling from "./pages/operator/fleet/MaintenanceScheduling";
+import SecurityAlertsDashboard from "./pages/operator/security/SecurityAlertsDashboard";
 import { OperatorUserProvider } from "./contexts/OperatorUserContext";
 
 
@@ -98,6 +111,19 @@ function AppRoutes() {
         <Route path="wallet" element={<WalletDashboard />} />
         <Route path="analytics" element={<AnalyticsDashboard />} />
         <Route path="audit" element={<OperatorAuditLogs />} />
+        <Route path="bookings/seat-selection" element={<SeatSelection />} />
+        <Route path="bookings/passenger-manifest" element={<PassengerManifest />} />
+        <Route path="trips/cancellation" element={<TripCancellation />} />
+        <Route path="trips/assignment" element={<DriverTripAssignment />} />
+        <Route path="notifications" element={<NotificationsCenter />} />
+        <Route path="loyalty" element={<LoyaltyPoints />} />
+        <Route path="routes/pricing" element={<PriceHistory />} />
+        <Route path="fleet/capacity" element={<BusCapacityConfig />} />
+        <Route path="fleet/driver-alerts" element={<DriverLicenseAlerts />} />
+        <Route path="fleet/document-alerts" element={<DocumentExpiryAlerts />} />
+        <Route path="fleet/maintenance" element={<MaintenanceScheduling />} />
+        <Route path="finance/ledger" element={<FinancialLedger />} />
+        <Route path="security" element={<SecurityAlertsDashboard />} />
       </Route>
 
       
