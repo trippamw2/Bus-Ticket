@@ -18,6 +18,7 @@ import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import OperatorManagement from "./pages/admin/operators/OperatorManagement";
+import FleetManagement from "./pages/admin/fleet/FleetManagement";
 import PlatformSettings from "./pages/admin/settings/PlatformSettings";
 import ReportsDashboard from "./pages/admin/reports/ReportsDashboard";
 import AuditLogs from "./pages/admin/audit/AuditLogs";
@@ -142,7 +143,8 @@ function AppRoutes() {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardHome />} />
         <Route path="enterprise" element={<EnterpriseDashboard />} />
-        <Route path="operators" element={<OperatorManagement />} />
+<Route path="operators" element={<OperatorManagement />} />
+        <Route path="fleet" element={<FleetManagement />} />
         <Route path="settings" element={<PlatformSettings />} />
         <Route path="reports" element={<ReportsDashboard />} />
         <Route path="audit-logs" element={<AuditLogs />} />
