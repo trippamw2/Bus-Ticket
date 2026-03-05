@@ -14,7 +14,8 @@ import {
   LayoutDashboard,
   Activity,
   Bus,
-  Route
+  Route,
+  Calendar
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -34,6 +35,7 @@ const AdminDashboard = () => {
     { path: '/admin/operators', label: 'Operator Management', icon: Users },
     { path: '/admin/fleet', label: 'Fleet Management', icon: Bus },
     { path: '/admin/routes', label: 'Route Management', icon: Route },
+    { path: '/admin/trips', label: 'Trip Management', icon: Calendar },
     { path: '/admin/settings', label: 'Platform Settings', icon: Settings },
     { path: '/admin/reports', label: 'Reports', icon: BarChart3 },
     { path: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },

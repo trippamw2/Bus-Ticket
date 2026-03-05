@@ -20,6 +20,7 @@ import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import OperatorManagement from "./pages/admin/operators/OperatorManagement";
 import FleetManagement from "./pages/admin/fleet/FleetManagement";
 import RouteManagement from "./pages/admin/routes/RouteManagement";
+import TripManagement from "./pages/admin/trips/TripManagement";
 import PlatformSettings from "./pages/admin/settings/PlatformSettings";
 import ReportsDashboard from "./pages/admin/reports/ReportsDashboard";
 import AuditLogs from "./pages/admin/audit/AuditLogs";
@@ -144,7 +145,8 @@ function AppRoutes() {
         <Route path="enterprise" element={<EnterpriseDashboard />} />
 <Route path="operators" element={<OperatorManagement />} />
 <Route path="fleet" element={<FleetManagement />} />
-        <Route path="routes" element={<RouteManagement />} />
+<Route path="routes" element={<RouteManagement />} />
+        <Route path="trips" element={<TripManagement />} />
         <Route path="settings" element={<PlatformSettings />} />
         <Route path="reports" element={<ReportsDashboard />} />
         <Route path="audit-logs" element={<AuditLogs />} />
