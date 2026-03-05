@@ -11,7 +11,8 @@ import {
   Menu, 
   X, 
   LogOut,
-  LayoutDashboard
+  LayoutDashboard,
+  Activity
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -27,6 +28,7 @@ const AdminDashboard = () => {
 
   const navItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/enterprise', label: 'Enterprise', icon: Activity },
     { path: '/admin/operators', label: 'Operator Management', icon: Users },
     { path: '/admin/settings', label: 'Platform Settings', icon: Settings },
     { path: '/admin/reports', label: 'Reports', icon: BarChart3 },
@@ -35,7 +37,6 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-      {/* Header */}
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between lg:hidden">
         <span className="font-bold text-lg flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
@@ -47,7 +48,6 @@ const AdminDashboard = () => {
       </header>
 
       <div className="flex">
-        {/* Sidebar */}
         <aside className={`
           fixed lg:static inset-y-0 left-0 z-50 w-64 bg-gray-900 text-white transform transition-transform duration-200
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -70,13 +70,11 @@ const AdminDashboard = () => {
                   key={item.path}
                   to={item.path}
                   onClick={() => setSidebarOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-lg transition-colors
-                    ${isActive 
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                    isActive 
                       ? 'bg-primary text-white' 
                       : 'text-gray-300 hover:bg-gray-800'
-                    }
-                  `}
+                  }`}
                 >
                   <Icon className="h-5 w-5" />
                   {item.label}
@@ -97,13 +95,11 @@ const AdminDashboard = () => {
           </div>
         </aside>
 
-        {/* Main Content */}
         <main className="flex-1 p-4 lg:p-8 overflow-auto">
           <Outlet />
         </main>
       </div>
 
-      {/* Overlay for mobile */}
       {sidebarOpen && (
         <div 
           className="fixed inset-0 bg-black/50 z-40 lg:hidden"

@@ -40,6 +40,9 @@ import DriverTripAssignment from "./pages/operator/trips/DriverTripAssignment";
 import DocumentExpiryAlerts from "./pages/operator/fleet/DocumentExpiryAlerts";
 import MaintenanceScheduling from "./pages/operator/fleet/MaintenanceScheduling";
 import SecurityAlertsDashboard from "./pages/operator/security/SecurityAlertsDashboard";
+import EnterpriseDashboard from "./pages/admin/EnterpriseDashboard";
+import MaintenanceScheduling from "./pages/operator/fleet/MaintenanceScheduling";
+import SecurityAlertsDashboard from "./pages/operator/security/SecurityAlertsDashboard";
 import { OperatorUserProvider } from "./contexts/OperatorUserContext";
 
 
@@ -138,6 +141,7 @@ function AppRoutes() {
       }>
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardHome />} />
+        <Route path="enterprise" element={<EnterpriseDashboard />} />
         <Route path="operators" element={<OperatorManagement />} />
         <Route path="settings" element={<PlatformSettings />} />
         <Route path="reports" element={<ReportsDashboard />} />
