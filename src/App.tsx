@@ -19,6 +19,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import OperatorManagement from "./pages/admin/operators/OperatorManagement";
 import FleetManagement from "./pages/admin/fleet/FleetManagement";
+import RouteManagement from "./pages/admin/routes/RouteManagement";
 import PlatformSettings from "./pages/admin/settings/PlatformSettings";
 import ReportsDashboard from "./pages/admin/reports/ReportsDashboard";
 import AuditLogs from "./pages/admin/audit/AuditLogs";
@@ -42,8 +43,6 @@ import DocumentExpiryAlerts from "./pages/operator/fleet/DocumentExpiryAlerts";
 import MaintenanceScheduling from "./pages/operator/fleet/MaintenanceScheduling";
 import SecurityAlertsDashboard from "./pages/operator/security/SecurityAlertsDashboard";
 import EnterpriseDashboard from "./pages/admin/EnterpriseDashboard";
-import MaintenanceScheduling from "./pages/operator/fleet/MaintenanceScheduling";
-import SecurityAlertsDashboard from "./pages/operator/security/SecurityAlertsDashboard";
 import { OperatorUserProvider } from "./contexts/OperatorUserContext";
 
 
@@ -144,7 +143,8 @@ function AppRoutes() {
         <Route path="dashboard" element={<AdminDashboardHome />} />
         <Route path="enterprise" element={<EnterpriseDashboard />} />
 <Route path="operators" element={<OperatorManagement />} />
-        <Route path="fleet" element={<FleetManagement />} />
+<Route path="fleet" element={<FleetManagement />} />
+        <Route path="routes" element={<RouteManagement />} />
         <Route path="settings" element={<PlatformSettings />} />
         <Route path="reports" element={<ReportsDashboard />} />
         <Route path="audit-logs" element={<AuditLogs />} />
