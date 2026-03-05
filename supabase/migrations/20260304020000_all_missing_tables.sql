@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS public.operator_users (
 
 ALTER TABLE public.operator_users ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for operator_users
 DO $$ BEGIN
   CREATE POLICY "Operators can view own users" ON public.operator_users FOR SELECT USING (auth.uid() = operator_id);
 EXCEPTION WHEN duplicate_object THEN null;
@@ -82,7 +81,6 @@ DO $$ BEGIN
 EXCEPTION WHEN duplicate_object THEN null;
 END $$;
 
--- Indexes
 CREATE INDEX IF NOT EXISTS idx_operator_audit_logs_operator_id ON public.operator_audit_logs(operator_id);
 CREATE INDEX IF NOT EXISTS idx_operator_audit_logs_created_at ON public.operator_audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_operator_audit_logs_action ON public.operator_audit_logs(action);
@@ -121,18 +119,7 @@ END $$;
 CREATE TABLE IF NOT EXISTS public.wallet_transactions (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   wallet_id UUID NOT NULL REFERENCES public.operator_wallets(id) ON DELETE CASCADE,
-  operator_id UUID NOT NULL,  -- Added for RLS
-  type TEXT NOT NULL CHECK (type IN ('booking_credit', 'booking_hold', 'booking_release', 'payout', 'refund', 'adjustment', 'commission', 'fee')),
-  amount NUMERIC NOT NULL DEFAULT 0,
-  reference_type TEXT,
-  reference_id UUID,
-  description TEXT,
-  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('pending', 'completed', 'failed', 'cancelled')),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.wallet_transactions (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  wallet_id UUID NOT NULL REFERENCES public.operator_wallets(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,
   type TEXT NOT NULL CHECK (type IN ('booking_credit', 'booking_hold', 'booking_release', 'payout', 'refund', 'adjustment', 'commission', 'fee')),
   amount NUMERIC NOT NULL DEFAULT 0,
   reference_type TEXT,
@@ -296,21 +283,7 @@ CREATE INDEX IF NOT EXISTS idx_drivers_status ON public.drivers(status);
 CREATE TABLE IF NOT EXISTS public.bus_documents (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
-  operator_id UUID NOT NULL,  -- Added for RLS
-  document_type TEXT NOT NULL CHECK (document_type IN ('insurance', 'road_permit', 'fitness_certificate', 'registration', 'permit', 'tax_clearance', 'other')),
-  document_number TEXT,
-  issue_date DATE,
-  expiry_date DATE,
-  issuing_authority TEXT,
-  document_url TEXT,
-  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'expiring', 'pending', 'rejected')),
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.bus_documents (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,
   document_type TEXT NOT NULL CHECK (document_type IN ('insurance', 'road_permit', 'fitness_certificate', 'registration', 'permit', 'tax_clearance', 'other')),
   document_number TEXT,
   issue_date DATE,
@@ -358,19 +331,7 @@ CREATE INDEX IF NOT EXISTS idx_bus_documents_status ON public.bus_documents(stat
 CREATE TABLE IF NOT EXISTS public.maintenance_logs (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
-  operator_id UUID NOT NULL,  -- Added for RLS
-  maintenance_type TEXT NOT NULL CHECK (maintenance_type IN ('routine', 'repair', 'inspection', 'tire_replacement', 'engine_service', 'brake_service', 'transmission', 'electrical', 'body_work', 'other')),
-  description TEXT,
-  cost NUMERIC,
-  performed_by TEXT,
-  performed_date DATE NOT NULL,
-  next_due_date DATE,
-  next_due_km INTEGER,
-  odometer_reading INTEGER,
-  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled')),
-CREATE TABLE IF NOT EXISTS public.maintenance_logs (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,
   maintenance_type TEXT NOT NULL CHECK (maintenance_type IN ('routine', 'repair', 'inspection', 'tire_replacement', 'engine_service', 'brake_service', 'transmission', 'electrical', 'body_work', 'other')),
   description TEXT,
   cost NUMERIC,
@@ -424,18 +385,7 @@ CREATE TABLE IF NOT EXISTS public.trip_assignments (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   trip_id UUID NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
   driver_id UUID REFERENCES public.drivers(id) ON DELETE SET NULL,
-  operator_id UUID NOT NULL,  -- Added for RLS
-  assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  assigned_by TEXT,
-  status TEXT NOT NULL DEFAULT 'assigned' CHECK (status IN ('assigned', 'confirmed', 'cancelled', 'completed')),
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.trip_assignments (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  trip_id UUID NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
-  driver_id UUID REFERENCES public.drivers(id) ON DELETE SET NULL,
+  operator_id UUID NOT NULL,
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   assigned_by TEXT,
   status TEXT NOT NULL DEFAULT 'assigned' CHECK (status IN ('assigned', 'confirmed', 'cancelled', 'completed')),
@@ -471,20 +421,7 @@ CREATE INDEX IF NOT EXISTS idx_trip_assignments_driver_id ON public.trip_assignm
 CREATE TABLE IF NOT EXISTS public.seasonal_pricing (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
-  operator_id UUID NOT NULL,  -- Added for RLS
-  season_name TEXT NOT NULL,
-  start_date DATE NOT NULL,
-  end_date DATE NOT NULL,
-  price_modifier NUMERIC NOT NULL DEFAULT 0,
-  is_percentage BOOLEAN NOT NULL DEFAULT true,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  apply_to TEXT NOT NULL DEFAULT 'both' CHECK (apply_to IN ('one_way', 'return', 'both')),
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,
   season_name TEXT NOT NULL,
   start_date DATE NOT NULL,
   end_date DATE NOT NULL,
@@ -522,18 +459,7 @@ CREATE INDEX IF NOT EXISTS idx_seasonal_pricing_active ON public.seasonal_pricin
 CREATE TABLE IF NOT EXISTS public.route_price_history (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
-  operator_id UUID NOT NULL,  -- Added for RLS
-  old_price NUMERIC,
-  new_price NUMERIC NOT NULL,
-  price_type TEXT NOT NULL CHECK (price_type IN ('one_way', 'return', 'seasonal')),
-  changed_by TEXT,
-  reason TEXT,
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE TABLE IF NOT EXISTS public.route_price_history (
-  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,
   old_price NUMERIC,
   new_price NUMERIC NOT NULL,
   price_type TEXT NOT NULL CHECK (price_type IN ('one_way', 'return', 'seasonal')),
@@ -567,7 +493,6 @@ CREATE INDEX IF NOT EXISTS idx_route_price_history_created_at ON public.route_pr
 -- 6. TRIGGERS
 -- ============================================
 
--- Update updated_at trigger
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -579,36 +504,10 @@ BEGIN
 END;
 $$;
 
--- Triggers for tables with updated_at
-DROP TRIGGER IF EXISTS update_operator_wallets_updated_at ON public.operator_wallets;
-CREATE TRIGGER update_operator_wallets_updated_at BEFORE UPDATE ON public.operator_wallets FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_wallet_withdrawal_requests_updated_at ON public.wallet_withdrawal_requests;
-CREATE TRIGGER update_wallet_withdrawal_requests_updated_at BEFORE UPDATE ON public.wallet_withdrawal_requests FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_settlements_updated_at ON public.settlements;
-CREATE TRIGGER update_settlements_updated_at BEFORE UPDATE ON public.settlements FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_drivers_updated_at ON public.drivers;
-CREATE TRIGGER update_drivers_updated_at BEFORE UPDATE ON public.drivers FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_bus_documents_updated_at ON public.bus_documents;
-CREATE TRIGGER update_bus_documents_updated_at BEFORE UPDATE ON public.bus_documents FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_maintenance_logs_updated_at ON public.maintenance_logs;
-CREATE TRIGGER update_maintenance_logs_updated_at BEFORE UPDATE ON public.maintenance_logs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_seasonal_pricing_updated_at ON public.seasonal_pricing;
-CREATE TRIGGER update_seasonal_pricing_updated_at BEFORE UPDATE ON public.seasonal_pricing FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
-DROP TRIGGER IF EXISTS update_trip_assignments_updated_at ON public.trip_assignments;
-CREATE TRIGGER update_trip_assignments_updated_at BEFORE UPDATE ON public.trip_assignments FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
-
 -- ============================================
 -- 7. HELPER FUNCTIONS
 -- ============================================
 
--- Get effective route price with seasonal modifiers
 CREATE OR REPLACE FUNCTION public.get_effective_route_price(
   p_route_id UUID,
   p_ticket_type TEXT DEFAULT 'one_way'
@@ -656,7 +555,6 @@ BEGIN
 END;
 $$;
 
--- Process trip settlement
 CREATE OR REPLACE FUNCTION public.process_trip_settlement(
   p_trip_id UUID,
   p_commission_percent NUMERIC DEFAULT 10
@@ -715,10 +613,6 @@ BEGIN
     updated_at = now()
   WHERE id = v_wallet_id;
 
-  INSERT INTO wallet_transactions (wallet_id, type, amount, reference_type, reference_id, description)
-  VALUES (v_wallet_id, 'booking_hold', v_net_amount, 'trip', p_trip_id, 
-    jsonb_build_object('trip_date', v_trip.travel_date, 'gross', v_booking_total, 'commission', v_commission)::text);
-
   RETURN jsonb_build_object(
     'success', true,
     'gross_amount', v_booking_total,
@@ -729,7 +623,6 @@ BEGIN
 END;
 $$;
 
--- Check expiring documents
 CREATE OR REPLACE FUNCTION public.check_expiring_documents()
 RETURNS void
 LANGUAGE plpgsql
