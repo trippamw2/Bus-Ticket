@@ -121,6 +121,18 @@ END $$;
 CREATE TABLE IF NOT EXISTS public.wallet_transactions (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   wallet_id UUID NOT NULL REFERENCES public.operator_wallets(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,  -- Added for RLS
+  type TEXT NOT NULL CHECK (type IN ('booking_credit', 'booking_hold', 'booking_release', 'payout', 'refund', 'adjustment', 'commission', 'fee')),
+  amount NUMERIC NOT NULL DEFAULT 0,
+  reference_type TEXT,
+  reference_id UUID,
+  description TEXT,
+  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('pending', 'completed', 'failed', 'cancelled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.wallet_transactions (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  wallet_id UUID NOT NULL REFERENCES public.operator_wallets(id) ON DELETE CASCADE,
   type TEXT NOT NULL CHECK (type IN ('booking_credit', 'booking_hold', 'booking_release', 'payout', 'refund', 'adjustment', 'commission', 'fee')),
   amount NUMERIC NOT NULL DEFAULT 0,
   reference_type TEXT,
@@ -284,6 +296,21 @@ CREATE INDEX IF NOT EXISTS idx_drivers_status ON public.drivers(status);
 CREATE TABLE IF NOT EXISTS public.bus_documents (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,  -- Added for RLS
+  document_type TEXT NOT NULL CHECK (document_type IN ('insurance', 'road_permit', 'fitness_certificate', 'registration', 'permit', 'tax_clearance', 'other')),
+  document_number TEXT,
+  issue_date DATE,
+  expiry_date DATE,
+  issuing_authority TEXT,
+  document_url TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'expired', 'expiring', 'pending', 'rejected')),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.bus_documents (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
   document_type TEXT NOT NULL CHECK (document_type IN ('insurance', 'road_permit', 'fitness_certificate', 'registration', 'permit', 'tax_clearance', 'other')),
   document_number TEXT,
   issue_date DATE,
@@ -328,6 +355,19 @@ CREATE INDEX IF NOT EXISTS idx_bus_documents_expiry ON public.bus_documents(expi
 CREATE INDEX IF NOT EXISTS idx_bus_documents_status ON public.bus_documents(status);
 
 -- Maintenance Logs
+CREATE TABLE IF NOT EXISTS public.maintenance_logs (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,  -- Added for RLS
+  maintenance_type TEXT NOT NULL CHECK (maintenance_type IN ('routine', 'repair', 'inspection', 'tire_replacement', 'engine_service', 'brake_service', 'transmission', 'electrical', 'body_work', 'other')),
+  description TEXT,
+  cost NUMERIC,
+  performed_by TEXT,
+  performed_date DATE NOT NULL,
+  next_due_date DATE,
+  next_due_km INTEGER,
+  odometer_reading INTEGER,
+  status TEXT NOT NULL DEFAULT 'completed' CHECK (status IN ('scheduled', 'in_progress', 'completed', 'cancelled')),
 CREATE TABLE IF NOT EXISTS public.maintenance_logs (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
@@ -384,6 +424,18 @@ CREATE TABLE IF NOT EXISTS public.trip_assignments (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   trip_id UUID NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
   driver_id UUID REFERENCES public.drivers(id) ON DELETE SET NULL,
+  operator_id UUID NOT NULL,  -- Added for RLS
+  assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  assigned_by TEXT,
+  status TEXT NOT NULL DEFAULT 'assigned' CHECK (status IN ('assigned', 'confirmed', 'cancelled', 'completed')),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE IF NOT EXISTS public.trip_assignments (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  trip_id UUID NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
+  driver_id UUID REFERENCES public.drivers(id) ON DELETE SET NULL,
   assigned_at TIMESTAMPTZ NOT NULL DEFAULT now(),
   assigned_by TEXT,
   status TEXT NOT NULL DEFAULT 'assigned' CHECK (status IN ('assigned', 'confirmed', 'cancelled', 'completed')),
@@ -417,6 +469,20 @@ CREATE INDEX IF NOT EXISTS idx_trip_assignments_driver_id ON public.trip_assignm
 -- ============================================
 
 CREATE TABLE IF NOT EXISTS public.seasonal_pricing (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,  -- Added for RLS
+  season_name TEXT NOT NULL,
+  start_date DATE NOT NULL,
+  end_date DATE NOT NULL,
+  price_modifier NUMERIC NOT NULL DEFAULT 0,
+  is_percentage BOOLEAN NOT NULL DEFAULT true,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  apply_to TEXT NOT NULL DEFAULT 'both' CHECK (apply_to IN ('one_way', 'return', 'both')),
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
   season_name TEXT NOT NULL,
@@ -453,6 +519,18 @@ CREATE INDEX IF NOT EXISTS idx_seasonal_pricing_dates ON public.seasonal_pricing
 CREATE INDEX IF NOT EXISTS idx_seasonal_pricing_active ON public.seasonal_pricing(is_active);
 
 -- Route Price History
+CREATE TABLE IF NOT EXISTS public.route_price_history (
+  id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
+  route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
+  operator_id UUID NOT NULL,  -- Added for RLS
+  old_price NUMERIC,
+  new_price NUMERIC NOT NULL,
+  price_type TEXT NOT NULL CHECK (price_type IN ('one_way', 'return', 'seasonal')),
+  changed_by TEXT,
+  reason TEXT,
+  notes TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
 CREATE TABLE IF NOT EXISTS public.route_price_history (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
