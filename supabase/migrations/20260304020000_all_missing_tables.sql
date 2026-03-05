@@ -518,6 +518,52 @@ SET search_path = public
 AS $$
 DECLARE
   v_base_price NUMERIC;
+  v_seasonal RECORD;
+BEGIN
+  -- Get base price
+  SELECT 
+    CASE 
+      WHEN p_ticket_type = 'one_way' THEN routes.one_way_price
+      ELSE routes.return_price
+    END INTO v_base_price
+  FROM routes
+  WHERE id = p_route_id;
+
+  IF v_base_price IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  -- Get active seasonal pricing
+  SELECT sp.price_modifier, sp.is_percentage INTO v_seasonal
+  FROM seasonal_pricing sp
+  WHERE sp.route_id = p_route_id
+    AND sp.is_active = true
+    AND sp.start_date <= CURRENT_DATE
+    AND sp.end_date >= CURRENT_DATE
+    AND (sp.apply_to = 'both' OR sp.apply_to = p_ticket_type)
+  ORDER BY sp.price_modifier DESC
+  LIMIT 1;
+
+  IF v_seasonal.price_modifier IS NOT NULL AND v_seasonal.price_modifier != 0 THEN
+    IF v_seasonal.is_percentage THEN
+      v_base_price := v_base_price + (v_base_price * v_seasonal.price_modifier / 100);
+    ELSE
+      v_base_price := v_base_price + v_seasonal.price_modifier;
+    END IF;
+  END IF;
+
+  RETURN v_base_price;
+END;
+$$;
+  p_route_id UUID,
+  p_ticket_type TEXT DEFAULT 'one_way'
+)
+RETURNS NUMERIC
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  v_base_price NUMERIC;
   v_modifier NUMERIC;
   v_is_percentage BOOLEAN;
 BEGIN
@@ -556,6 +602,71 @@ END;
 $$;
 
 CREATE OR REPLACE FUNCTION public.process_trip_settlement(
+  p_trip_id UUID,
+  p_commission_percent NUMERIC DEFAULT 10
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SET search_path = public
+AS $$
+DECLARE
+  v_trip RECORD;
+  v_booking_total NUMERIC := 0;
+  v_commission NUMERIC := 0;
+  v_net_amount NUMERIC := 0;
+  v_wallet_id UUID;
+  v_operator_id UUID;
+BEGIN
+  -- Get trip with route info
+  SELECT t.*, r.operator_id INTO v_trip
+  FROM trips t
+  JOIN routes r ON t.route_id = r.id
+  WHERE t.id = p_trip_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Trip not found');
+  END IF;
+
+  v_operator_id := v_trip.operator_id;
+
+  SELECT COALESCE(SUM(amount), 0) INTO v_booking_total
+  FROM bookings
+  WHERE trip_id = p_trip_id AND status = 'paid';
+
+  IF v_booking_total = 0 THEN
+    RETURN jsonb_build_object('success', false, 'error', 'No paid bookings for this trip');
+  END IF;
+
+  v_commission := v_booking_total * p_commission_percent / 100;
+  v_net_amount := v_booking_total - v_commission;
+
+  SELECT id INTO v_wallet_id
+  FROM operator_wallets
+  WHERE operator_id = v_operator_id;
+
+  IF v_wallet_id IS NULL THEN
+    INSERT INTO operator_wallets (operator_id, balance, held_funds, cleared_funds, total_earned)
+    VALUES (v_operator_id, 0, 0, 0, 0)
+    RETURNING id INTO v_wallet_id;
+  END IF;
+
+  UPDATE operator_wallets
+  SET 
+    balance = balance + v_net_amount,
+    held_funds = held_funds + v_net_amount,
+    total_earned = total_earned + v_net_amount,
+    updated_at = now()
+  WHERE id = v_wallet_id;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'gross_amount', v_booking_total,
+    'commission', v_commission,
+    'net_amount', v_net_amount,
+    'wallet_id', v_wallet_id
+  );
+END;
+$$;
   p_trip_id UUID,
   p_commission_percent NUMERIC DEFAULT 10
 )
