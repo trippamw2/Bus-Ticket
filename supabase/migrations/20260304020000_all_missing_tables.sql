@@ -1,14 +1,8 @@
 -- ============================================
 -- BusLink Missing Tables Migration
--- Run this to add all missing tables and functions
--- Uses IF NOT EXISTS / OR REPLACE for safe re-runs
 -- ============================================
 
--- ============================================
--- 1. OPERATOR USERS & AUDIT LOGS
--- ============================================
-
--- Operator Users (staff accounts)
+-- 1. OPERATOR USERS
 CREATE TABLE IF NOT EXISTS public.operator_users (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   operator_id UUID NOT NULL REFERENCES public.operators(id) ON DELETE CASCADE,
@@ -26,32 +20,13 @@ CREATE TABLE IF NOT EXISTS public.operator_users (
 
 ALTER TABLE public.operator_users ENABLE ROW LEVEL SECURITY;
 
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own users" ON public.operator_users FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own users" ON public.operator_users FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can insert own users" ON public.operator_users FOR INSERT WITH CHECK (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can update own users" ON public.operator_users FOR UPDATE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can delete own users" ON public.operator_users FOR DELETE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access operator_users" ON public.operator_users FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-DO $$ BEGIN
-  CREATE POLICY "Operators can insert own users" ON public.operator_users FOR INSERT WITH CHECK (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can update own users" ON public.operator_users FOR UPDATE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can delete own users" ON public.operator_users FOR DELETE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access operator_users" ON public.operator_users FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
--- Operator Audit Logs
+-- 2. OPERATOR AUDIT LOGS
 CREATE TABLE IF NOT EXISTS public.operator_audit_logs (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   operator_id UUID NOT NULL REFERENCES public.operators(id) ON DELETE CASCADE,
@@ -65,31 +40,15 @@ CREATE TABLE IF NOT EXISTS public.operator_audit_logs (
 );
 
 ALTER TABLE public.operator_audit_logs ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own audit logs" ON public.operator_audit_logs FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can insert own audit logs" ON public.operator_audit_logs FOR INSERT WITH CHECK (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access operator_audit_logs" ON public.operator_audit_logs FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own audit logs" ON public.operator_audit_logs FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can insert own audit logs" ON public.operator_audit_logs FOR INSERT WITH CHECK (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access operator_audit_logs" ON public.operator_audit_logs FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_operator_audit_logs_operator_id ON public.operator_audit_logs(operator_id);
 CREATE INDEX IF NOT EXISTS idx_operator_audit_logs_created_at ON public.operator_audit_logs(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_operator_audit_logs_action ON public.operator_audit_logs(action);
 
--- ============================================
--- 2. WALLET OPERATIONS
--- ============================================
-
--- Operator Wallets
+-- 3. OPERATOR WALLETS
 CREATE TABLE IF NOT EXISTS public.operator_wallets (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   operator_id UUID NOT NULL REFERENCES public.operators(id) ON DELETE CASCADE UNIQUE,
@@ -104,18 +63,10 @@ CREATE TABLE IF NOT EXISTS public.operator_wallets (
 );
 
 ALTER TABLE public.operator_wallets ENABLE ROW LEVEL SECURITY;
+DO $$ BEGIN CREATE POLICY "Operators can view own wallet" ON public.operator_wallets FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access operator_wallets" ON public.operator_wallets FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own wallet" ON public.operator_wallets FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access operator_wallets" ON public.operator_wallets FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
--- Wallet Transactions
+-- 4. WALLET TRANSACTIONS
 CREATE TABLE IF NOT EXISTS public.wallet_transactions (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   wallet_id UUID NOT NULL REFERENCES public.operator_wallets(id) ON DELETE CASCADE,
@@ -130,21 +81,13 @@ CREATE TABLE IF NOT EXISTS public.wallet_transactions (
 );
 
 ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own transactions" ON public.wallet_transactions FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access wallet_transactions" ON public.wallet_transactions FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own transactions" ON public.wallet_transactions FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access wallet_transactions" ON public.wallet_transactions FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_wallet_transactions_wallet_id ON public.wallet_transactions(wallet_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_transactions_created_at ON public.wallet_transactions(created_at DESC);
 
--- Wallet Withdrawal Requests
+-- 5. WALLET WITHDRAWAL REQUESTS
 CREATE TABLE IF NOT EXISTS public.wallet_withdrawal_requests (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES public.operators(id) ON DELETE CASCADE,
@@ -166,29 +109,14 @@ CREATE TABLE IF NOT EXISTS public.wallet_withdrawal_requests (
 );
 
 ALTER TABLE public.wallet_withdrawal_requests ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own withdrawal requests" ON public.wallet_withdrawal_requests FOR SELECT USING (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can insert withdrawal requests" ON public.wallet_withdrawal_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access wallet_withdrawal_requests" ON public.wallet_withdrawal_requests FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own withdrawal requests" ON public.wallet_withdrawal_requests FOR SELECT USING (auth.uid() = user_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can insert withdrawal requests" ON public.wallet_withdrawal_requests FOR INSERT WITH CHECK (auth.uid() = user_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access wallet_withdrawal_requests" ON public.wallet_withdrawal_requests FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_wallet_withdrawal_requests_user_id ON public.wallet_withdrawal_requests(user_id);
 CREATE INDEX IF NOT EXISTS idx_wallet_withdrawal_requests_status ON public.wallet_withdrawal_requests(status);
 
--- ============================================
--- 3. SETTLEMENTS
--- ============================================
-
+-- 6. SETTLEMENTS
 CREATE TABLE IF NOT EXISTS public.settlements (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   operator_id UUID NOT NULL REFERENCES public.operators(id) ON DELETE CASCADE,
@@ -209,26 +137,14 @@ CREATE TABLE IF NOT EXISTS public.settlements (
 );
 
 ALTER TABLE public.settlements ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own settlements" ON public.settlements FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access settlements" ON public.settlements FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own settlements" ON public.settlements FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access settlements" ON public.settlements FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_settlements_operator_id ON public.settlements(operator_id);
 CREATE INDEX IF NOT EXISTS idx_settlements_status ON public.settlements(status);
 CREATE INDEX IF NOT EXISTS idx_settlements_period ON public.settlements(settlement_period_start, settlement_period_end);
 
--- ============================================
--- 4. FLEET OPERATIONS
--- ============================================
-
--- Drivers
+-- 7. DRIVERS
 CREATE TABLE IF NOT EXISTS public.drivers (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   operator_id UUID NOT NULL REFERENCES public.operators(id) ON DELETE CASCADE,
@@ -250,36 +166,16 @@ CREATE TABLE IF NOT EXISTS public.drivers (
 );
 
 ALTER TABLE public.drivers ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own drivers" ON public.drivers FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can insert own drivers" ON public.drivers FOR INSERT WITH CHECK (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can update own drivers" ON public.drivers FOR UPDATE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can delete own drivers" ON public.drivers FOR DELETE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access drivers" ON public.drivers FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own drivers" ON public.drivers FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can insert own drivers" ON public.drivers FOR INSERT WITH CHECK (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can update own drivers" ON public.drivers FOR UPDATE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can delete own drivers" ON public.drivers FOR DELETE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access drivers" ON public.drivers FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_drivers_operator_id ON public.drivers(operator_id);
 CREATE INDEX IF NOT EXISTS idx_drivers_status ON public.drivers(status);
 
--- Bus Documents
+-- 8. BUS DOCUMENTS
 CREATE TABLE IF NOT EXISTS public.bus_documents (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
@@ -297,37 +193,17 @@ CREATE TABLE IF NOT EXISTS public.bus_documents (
 );
 
 ALTER TABLE public.bus_documents ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own bus documents" ON public.bus_documents FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can insert own bus documents" ON public.bus_documents FOR INSERT WITH CHECK (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can update own bus documents" ON public.bus_documents FOR UPDATE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can delete own bus documents" ON public.bus_documents FOR DELETE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access bus_documents" ON public.bus_documents FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own bus documents" ON public.bus_documents FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can insert own bus documents" ON public.bus_documents FOR INSERT WITH CHECK (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can update own bus documents" ON public.bus_documents FOR UPDATE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can delete own bus documents" ON public.bus_documents FOR DELETE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access bus_documents" ON public.bus_documents FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_bus_documents_bus_id ON public.bus_documents(bus_id);
 CREATE INDEX IF NOT EXISTS idx_bus_documents_expiry ON public.bus_documents(expiry_date);
 CREATE INDEX IF NOT EXISTS idx_bus_documents_status ON public.bus_documents(status);
 
--- Maintenance Logs
+-- 9. MAINTENANCE LOGS
 CREATE TABLE IF NOT EXISTS public.maintenance_logs (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   bus_id UUID NOT NULL REFERENCES public.buses(id) ON DELETE CASCADE,
@@ -350,37 +226,17 @@ CREATE TABLE IF NOT EXISTS public.maintenance_logs (
 );
 
 ALTER TABLE public.maintenance_logs ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own maintenance logs" ON public.maintenance_logs FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can insert own maintenance logs" ON public.maintenance_logs FOR INSERT WITH CHECK (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can update own maintenance logs" ON public.maintenance_logs FOR UPDATE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can delete own maintenance logs" ON public.maintenance_logs FOR DELETE USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access maintenance_logs" ON public.maintenance_logs FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own maintenance logs" ON public.maintenance_logs FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can insert own maintenance logs" ON public.maintenance_logs FOR INSERT WITH CHECK (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can update own maintenance logs" ON public.maintenance_logs FOR UPDATE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can delete own maintenance logs" ON public.maintenance_logs FOR DELETE USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access maintenance_logs" ON public.maintenance_logs FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_maintenance_logs_bus_id ON public.maintenance_logs(bus_id);
 CREATE INDEX IF NOT EXISTS idx_maintenance_logs_performed_date ON public.maintenance_logs(performed_date DESC);
 CREATE INDEX IF NOT EXISTS idx_maintenance_logs_next_due ON public.maintenance_logs(next_due_date);
 
--- Trip Assignments
+-- 10. TRIP ASSIGNMENTS
 CREATE TABLE IF NOT EXISTS public.trip_assignments (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   trip_id UUID NOT NULL REFERENCES public.trips(id) ON DELETE CASCADE,
@@ -395,29 +251,14 @@ CREATE TABLE IF NOT EXISTS public.trip_assignments (
 );
 
 ALTER TABLE public.trip_assignments ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can view own trip assignments" ON public.trip_assignments FOR SELECT USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can manage own trip assignments" ON public.trip_assignments FOR ALL USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access trip_assignments" ON public.trip_assignments FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Operators can view own trip assignments" ON public.trip_assignments FOR SELECT USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can manage own trip assignments" ON public.trip_assignments FOR ALL USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access trip_assignments" ON public.trip_assignments FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_trip_assignments_trip_id ON public.trip_assignments(trip_id);
 CREATE INDEX IF NOT EXISTS idx_trip_assignments_driver_id ON public.trip_assignments(driver_id);
 
--- ============================================
--- 5. SEASONAL PRICING
--- ============================================
-
+-- 11. SEASONAL PRICING
 CREATE TABLE IF NOT EXISTS public.seasonal_pricing (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
@@ -435,27 +276,15 @@ CREATE TABLE IF NOT EXISTS public.seasonal_pricing (
 );
 
 ALTER TABLE public.seasonal_pricing ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Anyone can view active seasonal pricing" ON public.seasonal_pricing FOR SELECT USING (true);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can manage own seasonal pricing" ON public.seasonal_pricing FOR ALL USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access seasonal_pricing" ON public.seasonal_pricing FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Anyone can view active seasonal pricing" ON public.seasonal_pricing FOR SELECT USING (true); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can manage own seasonal pricing" ON public.seasonal_pricing FOR ALL USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access seasonal_pricing" ON public.seasonal_pricing FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_seasonal_pricing_route_id ON public.seasonal_pricing(route_id);
 CREATE INDEX IF NOT EXISTS idx_seasonal_pricing_dates ON public.seasonal_pricing(start_date, end_date);
 CREATE INDEX IF NOT EXISTS idx_seasonal_pricing_active ON public.seasonal_pricing(is_active);
 
--- Route Price History
+-- 12. ROUTE PRICE HISTORY
 CREATE TABLE IF NOT EXISTS public.route_price_history (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   route_id UUID NOT NULL REFERENCES public.routes(id) ON DELETE CASCADE,
@@ -470,28 +299,14 @@ CREATE TABLE IF NOT EXISTS public.route_price_history (
 );
 
 ALTER TABLE public.route_price_history ENABLE ROW LEVEL SECURITY;
-
-DO $$ BEGIN
-  CREATE POLICY "Anyone can view route price history" ON public.route_price_history FOR SELECT USING (true);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Operators can manage own price history" ON public.route_price_history FOR ALL USING (auth.uid() = operator_id);
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
-
-DO $$ BEGIN
-  CREATE POLICY "Service role full access route_price_history" ON public.route_price_history FOR ALL USING (auth.jwt() ->> 'role' = 'service_role');
-EXCEPTION WHEN duplicate_object THEN null;
-END $$;
+DO $$ BEGIN CREATE POLICY "Anyone can view route price history" ON public.route_price_history FOR SELECT USING (true); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Operators can manage own price history" ON public.route_price_history FOR ALL USING (auth.uid() = operator_id); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO $$ BEGIN CREATE POLICY "Service role full access route_price_history" ON public.route_price_history FOR ALL USING (auth.jwt() ->> 'role' = 'service_role'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_route_price_history_route_id ON public.route_price_history(route_id);
 CREATE INDEX IF NOT EXISTS idx_route_price_history_created_at ON public.route_price_history(created_at DESC);
 
--- ============================================
--- 6. FUNCTIONS
--- ============================================
+-- 13. FUNCTIONS
 
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
 RETURNS TRIGGER
@@ -518,7 +333,8 @@ BEGIN
     CASE 
       WHEN p_ticket_type = 'one_way' THEN r.one_way_price
       ELSE r.return_price
-    END INTO v_base_price
+    END
+  INTO v_base_price
   FROM routes r
   WHERE r.id = p_route_id;
 
@@ -526,60 +342,18 @@ BEGIN
     RETURN NULL;
   END IF;
 
-  SELECT sp.price_modifier, sp.is_percentage INTO v_seasonal
-  FROM seasonal_pricing sp
-  WHERE sp.route_id = p_route_id
-    AND sp.is_active = true
-    AND sp.start_date <= CURRENT_DATE
-    AND sp.end_date >= CURRENT_DATE
-    AND (sp.apply_to = 'both' OR sp.apply_to = p_ticket_type)
-  ORDER BY sp.price_modifier DESC
+  SELECT price_modifier, is_percentage
+  INTO v_seasonal
+  FROM seasonal_pricing
+  WHERE route_id = p_route_id
+    AND is_active = true
+    AND start_date <= CURRENT_DATE
+    AND end_date >= CURRENT_DATE
+    AND (apply_to = 'both' OR apply_to = p_ticket_type)
+  ORDER BY price_modifier DESC
   LIMIT 1;
 
   IF v_seasonal.price_modifier IS NOT NULL AND v_seasonal.price_modifier != 0 THEN
-    IF v_seasonal.is_percentage THEN
-      v_base_price := v_base_price + (v_base_price * v_seasonal.price_modifier / 100);
-    ELSE
-      v_base_price := v_base_price + v_seasonal.price_modifier;
-    END IF;
-  END IF;
-
-  RETURN v_base_price;
-END;
-$$;
-  p_route_id UUID,
-  p_ticket_type TEXT DEFAULT 'one_way'
-)
-RETURNS NUMERIC
-LANGUAGE plpgsql
-AS $$
-DECLARE
-  v_base_price NUMERIC;
-  v_seasonal RECORD;
-BEGIN
-  SELECT 
-    CASE 
-      WHEN p_ticket_type = 'one_way' THEN r.one_way_price
-      ELSE r.return_price
-    END INTO v_base_price
-  FROM routes r
-  WHERE r.id = p_route_id;
-
-  IF v_base_price IS NULL THEN
-    RETURN NULL;
-  END IF;
-
-  SELECT sp.price_modifier, sp.is_percentage INTO v_seasonal
-  FROM seasonal_pricing sp
-  WHERE sp.route_id = p_route_id
-    AND sp.is_active = true
-    AND sp.start_date <= CURRENT_DATE
-    AND sp.end_date >= CURRENT_DATE
-    AND (sp.apply_to = 'both' OR sp.apply_to = p_ticket_type sp.price_modifier DESC
-  LIMIT 1;
-
- )
-  ORDER BY IF v_seasonal.price_modifier IS NOT NULL AND v_seasonal.price_modifier != 0 THEN
     IF v_seasonal.is_percentage THEN
       v_base_price := v_base_price + (v_base_price * v_seasonal.price_modifier / 100);
     ELSE
@@ -676,6 +450,4 @@ BEGIN
 END;
 $$;
 
--- ============================================
 -- DONE
--- ============================================
