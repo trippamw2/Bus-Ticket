@@ -9,7 +9,6 @@ import {
   DialogContent, 
   DialogHeader, 
   DialogTitle,
-  DialogTrigger,
   DialogFooter
 } from '@/components/ui/dialog';
 import { 
@@ -23,7 +22,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
-import { Users, Check, X, Edit, Percent } from 'lucide-react';
+import { 
+  Users, Check, X, Edit, Percent, Bus, Calendar, DollarSign, 
+  Phone, Mail, MapPin, Building2, FileText, Eye, Save
+} from 'lucide-react';
 
 interface Operator {
   id: string;
@@ -38,13 +40,66 @@ interface Operator {
   created_at: string;
 }
 
+interface Bus {
+  id: string;
+  plate_number: string;
+  capacity: number;
+  status: string;
+}
+
+interface Trip {
+  id: string;
+  departure_time: string;
+  status: string;
+  route_id: string;
+}
+
+interface Route {
+  id: string;
+  origin: string;
+  destination: string;
+}
+
+interface RevenueData {
+  total_bookings: number;
+  total_revenue: number;
+  commission: number;
+}
 const OperatorManagement = () => {
   const [operators, setOperators] = useState<Operator[]>([]);
+
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
-  const [commission, setCommission] = useState('');
   const [filter, setFilter] = useState<string>('all');
+  
+  // Dialogs
+  const [commissionDialogOpen, setCommissionDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [detailDialogOpen, setDetailDialogOpen] = useState(false);
+  
+  // Selected operator
+  const [selectedOperator, setSelectedOperator] = useState<Operator | null>(null);
+  
+  // Forms
+  const [commission, setCommission] = useState('');
+  const [editForm, setEditForm] = useState({
+    company_name: '',
+    company_address: '',
+    company_reg_number: '',
+    contact_email: '',
+    phone: '',
+    name: ''
+  });
+  
+  // Detail data
+  const [operatorBuses, setOperatorBuses] = useState<Bus[]>([]);
+  const [operatorTrips, setOperatorTrips] = useState<Trip[]>([]);
+  const [operatorRoutes, setOperatorRoutes] = useState<Route[]>([]);
+  const [operatorRevenue, setOperatorRevenue] = useState<RevenueData>({
+    total_bookings: 0,
+    total_revenue: 0,
+    commission: 0
+  });
+  const [detailLoading, setDetailLoading] = useState(false);
 
   useEffect(() => {
     fetchOperators();
@@ -74,7 +129,6 @@ const OperatorManagement = () => {
       toast.error(`Failed to ${newStatus} operator`);
     } else {
       toast.success(`Operator ${newStatus} successfully`);
-      // Log to audit
       await logAudit('operator_status_change', operatorId, { status: newStatus });
       fetchOperators();
     }
@@ -99,9 +153,108 @@ const OperatorManagement = () => {
     } else {
       toast.success('Commission updated successfully');
       await logAudit('commission_update', selectedOperator.id, { commission: commissionNum });
-      setDialogOpen(false);
+      setCommissionDialogOpen(false);
       fetchOperators();
     }
+  };
+
+  const saveOperatorDetails = async () => {
+    if (!selectedOperator) return;
+
+    const { error } = await supabase
+      .from('operators')
+      .update({
+        company_name: editForm.company_name,
+        company_address: editForm.company_address,
+        company_reg_number: editForm.company_reg_number,
+        contact_email: editForm.contact_email,
+        phone: editForm.phone,
+        name: editForm.name
+      })
+      .eq('id', selectedOperator.id);
+
+    if (error) {
+      toast.error('Failed to update operator');
+    } else {
+      toast.success('Operator details updated successfully');
+      await logAudit('operator_update', selectedOperator.id, editForm);
+      setEditDialogOpen(false);
+      fetchOperators();
+    }
+  };
+
+  const openEditDialog = (operator: Operator) => {
+    setSelectedOperator(operator);
+    setEditForm({
+      company_name: operator.company_name || '',
+      company_address: operator.company_address || '',
+      company_reg_number: operator.company_reg_number || '',
+      contact_email: operator.contact_email || '',
+      phone: operator.phone || '',
+      name: operator.name || ''
+    });
+    setEditDialogOpen(true);
+  };
+
+  const openCommissionDialog = (operator: Operator) => {
+    setSelectedOperator(operator);
+    setCommission(operator.commission_percent?.toString() || '10');
+    setCommissionDialogOpen(true);
+  };
+
+  const openDetailDialog = async (operator: Operator) => {
+    setSelectedOperator(operator);
+    setDetailDialogOpen(true);
+    setDetailLoading(true);
+
+    try {
+      // Fetch buses
+      const { data: buses } = await supabase
+        .from('buses')
+        .select('id, plate_number, capacity, status')
+        .eq('operator_id', operator.id);
+      setOperatorBuses(buses || []);
+
+      // Fetch trips
+      const { data: trips } = await supabase
+        .from('trips')
+        .select('id, departure_time, status, route_id')
+        .eq('operator_id', operator.id)
+        .order('departure_time', { ascending: false })
+        .limit(20);
+      setOperatorTrips(trips || []);
+
+      // Fetch routes
+      const { data: routes } = await supabase
+        .from('routes')
+        .select('id, origin, destination')
+        .eq('operator_id', operator.id);
+      setOperatorRoutes(routes || []);
+
+      // Calculate revenue
+      const tripIds = trips?.map(t => t.id) || [];
+      if (tripIds.length > 0) {
+        const { data: bookings } = await supabase
+          .from('bookings')
+          .select('amount, status')
+          .in('trip_id', tripIds)
+          .eq('status', 'paid');
+
+        const totalRevenue = (bookings || []).reduce((sum, b) => sum + (b.amount || 0), 0);
+        const commission = totalRevenue * ((operator.commission_percent || 10) / 100);
+        
+        setOperatorRevenue({
+          total_bookings: (bookings || []).length,
+          total_revenue: totalRevenue,
+          commission: commission
+        });
+      } else {
+        setOperatorRevenue({ total_bookings: 0, total_revenue: 0, commission: 0 });
+      }
+    } catch (error) {
+      console.error('Error loading operator details:', error);
+    }
+    setDetailLoading(false);
   };
 
   const logAudit = async (action: string, resourceId: string, metadata: Record<string, unknown>) => {
@@ -115,12 +268,6 @@ const OperatorManagement = () => {
         details: metadata
       } as any);
     }
-  };
-
-  const openCommissionDialog = (operator: Operator) => {
-    setSelectedOperator(operator);
-    setCommission(operator.commission_percent?.toString() || '10');
-    setDialogOpen(true);
   };
 
   const filteredOperators = operators.filter(op => {
@@ -155,7 +302,7 @@ const OperatorManagement = () => {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-4 gap-4">
         <Card>
           <CardContent className="pt-6">
             <div className="text-center">
@@ -184,6 +331,16 @@ const OperatorManagement = () => {
             </div>
           </CardContent>
         </Card>
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <p className="text-3xl font-bold text-red-600">
+                {operators.filter(o => o.status === 'suspended').length}
+              </p>
+              <p className="text-gray-500">Suspended</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Filter */}
@@ -206,9 +363,7 @@ const OperatorManagement = () => {
         </CardHeader>
         <CardContent>
           {filteredOperators.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No operators found.
-            </div>
+            <div className="text-center py-8 text-gray-500">No operators found.</div>
           ) : (
             <Table>
               <TableHeader>
@@ -218,6 +373,7 @@ const OperatorManagement = () => {
                   <TableHead>Phone</TableHead>
                   <TableHead>Commission</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Joined</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -246,8 +402,25 @@ const OperatorManagement = () => {
                       </Button>
                     </TableCell>
                     <TableCell>{getStatusBadge(operator.status)}</TableCell>
+                    <TableCell>{new Date(operator.created_at).toLocaleDateString()}</TableCell>
                     <TableCell>
-                      <div className="flex gap-2">
+                      <div className="flex gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openDetailDialog(operator)}
+                          title="View Details"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEditDialog(operator)}
+                          title="Edit"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
                         {operator.status === 'pending' && (
                           <>
                             <Button
@@ -255,6 +428,7 @@ const OperatorManagement = () => {
                               size="icon"
                               className="text-green-500 hover:text-green-700"
                               onClick={() => updateStatus(operator.id, 'approved')}
+                              title="Approve"
                             >
                               <Check className="h-4 w-4" />
                             </Button>
@@ -263,6 +437,7 @@ const OperatorManagement = () => {
                               size="icon"
                               className="text-red-500 hover:text-red-700"
                               onClick={() => updateStatus(operator.id, 'suspended')}
+                              title="Reject"
                             >
                               <X className="h-4 w-4" />
                             </Button>
@@ -274,6 +449,7 @@ const OperatorManagement = () => {
                             size="icon"
                             className="text-red-500 hover:text-red-700"
                             onClick={() => updateStatus(operator.id, 'suspended')}
+                            title="Suspend"
                           >
                             <X className="h-4 w-4" />
                           </Button>
@@ -284,6 +460,7 @@ const OperatorManagement = () => {
                             size="icon"
                             className="text-green-500 hover:text-green-700"
                             onClick={() => updateStatus(operator.id, 'approved')}
+                            title="Reactivate"
                           >
                             <Check className="h-4 w-4" />
                           </Button>
@@ -299,16 +476,15 @@ const OperatorManagement = () => {
       </Card>
 
       {/* Commission Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog open={commissionDialogOpen} onOpenChange={setCommissionDialogOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Set Commission for {selectedOperator?.company_name}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="commission">Commission Percentage (%)</Label>
+              <Label>Commission Percentage (%)</Label>
               <Input
-                id="commission"
                 type="number"
                 min="0"
                 max="100"
@@ -321,9 +497,266 @@ const OperatorManagement = () => {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setCommissionDialogOpen(false)}>Cancel</Button>
             <Button onClick={updateCommission}>Update Commission</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Operator Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label>Company Name</Label>
+              <Input
+                value={editForm.company_name}
+                onChange={(e) => setEditForm({ ...editForm, company_name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Contact Name</Label>
+              <Input
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Phone</Label>
+              <Input
+                value={editForm.phone}
+                onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Email</Label>
+              <Input
+                type="email"
+                value={editForm.contact_email}
+                onChange={(e) => setEditForm({ ...editForm, contact_email: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Registration Number</Label>
+              <Input
+                value={editForm.company_reg_number}
+                onChange={(e) => setEditForm({ ...editForm, company_reg_number: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Address</Label>
+              <Input
+                value={editForm.company_address}
+                onChange={(e) => setEditForm({ ...editForm, company_address: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+            <Button onClick={saveOperatorDetails}>
+              <Save className="h-4 w-4 mr-2" />
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Detail Dialog */}
+      <Dialog open={detailDialogOpen} onOpenChange={setDetailDialogOpen}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              {selectedOperator?.company_name || selectedOperator?.name} - Details
+            </DialogTitle>
+          </DialogHeader>
+          
+          {detailLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {/* Revenue Stats */}
+              <div className="grid grid-cols-3 gap-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <DollarSign className="h-4 w-4 text-green-500" />
+                      Total Revenue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">MWK {operatorRevenue.total_revenue.toLocaleString()}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Users className="h-4 w-4 text-blue-500" />
+                      Total Bookings
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">{operatorRevenue.total_bookings}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Percent className="h-4 w-4 text-purple-500" />
+                      Commission ({(selectedOperator?.commission_percent || 10)}%)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-2xl font-bold">MWK {operatorRevenue.commission.toLocaleString()}</p>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Contact Info */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Contact Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-gray-500" />
+                      <span>{selectedOperator?.phone || '-'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <span>{selectedOperator?.contact_email || '-'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-gray-500" />
+                      <span>{selectedOperator?.company_address || '-'}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-4 w-4 text-gray-500" />
+                      <span>{selectedOperator?.company_reg_number || '-'}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Status</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(selectedOperator?.status || '')}
+                      <span className="text-sm text-gray-500">
+                        Joined: {selectedOperator?.created_at ? new Date(selectedOperator.created_at).toLocaleDateString() : '-'}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Fleet */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Bus className="h-4 w-4" />
+                    Fleet ({operatorBuses.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {operatorBuses.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No buses registered</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Plate</TableHead>
+                          <TableHead>Capacity</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {operatorBuses.map(bus => (
+                          <TableRow key={bus.id}>
+                            <TableCell className="font-mono">{bus.plate_number}</TableCell>
+                            <TableCell>{bus.capacity} seats</TableCell>
+                            <TableCell>
+                              <Badge variant={bus.status === 'active' ? 'default' : 'secondary'}>
+                                {bus.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Routes */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    Routes ({operatorRoutes.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {operatorRoutes.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No routes</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {operatorRoutes.map(route => (
+                        <Badge key={route.id} variant="outline">
+                          {route.origin} → {route.destination}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Recent Trips */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Calendar className="h-4 w-4" />
+                    Recent Trips ({operatorTrips.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {operatorTrips.length === 0 ? (
+                    <p className="text-gray-500 text-sm">No trips</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Date/Time</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {operatorTrips.slice(0, 10).map(trip => (
+                          <TableRow key={trip.id}>
+                            <TableCell>
+                              {new Date(trip.departure_time).toLocaleString()}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={trip.status === 'active' ? 'default' : 'secondary'}>
+                                {trip.status}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>
