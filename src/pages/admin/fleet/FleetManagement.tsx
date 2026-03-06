@@ -58,7 +58,7 @@ const STATUS_OPTIONS = [
 ];
 
 const FleetManagement = () => {
-  const [buses, setBuses] = useState<Bus[]>([]);
+  const [buses, setBuses] = useState<BusData[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -70,7 +70,7 @@ const FleetManagement = () => {
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
   
   // Selected bus
-  const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
+  const [selectedBus, setSelectedBus] = useState<BusData | null>(null);
   
   // Forms
   const [editForm, setEditForm] = useState({

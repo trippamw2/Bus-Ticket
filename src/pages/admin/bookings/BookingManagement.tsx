@@ -249,7 +249,7 @@ const BookingManagement = () => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       const matchPhone = booking.phone?.toLowerCase().includes(query);
-      const matchName = booking.passenger_name?.toLowerCase().includes(query);
+      const matchName = booking.phone?.toLowerCase().includes(query);
       const matchCode = booking.ticket_code?.toLowerCase().includes(query);
       if (!matchPhone && !matchName && !matchCode) return false;
     }
@@ -400,7 +400,7 @@ const BookingManagement = () => {
                       <TableCell>
                         <div className="flex items-center gap-2">
                           <User className="h-4 w-4 text-muted-foreground" />
-                          {booking.passenger_name || '-'}
+                          {booking.phone || '-'}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -493,7 +493,7 @@ const BookingManagement = () => {
             {selectedBooking && (
               <div className="p-3 bg-muted rounded-lg">
                 <p className="text-sm"><strong>Reference:</strong> {selectedBooking.ticket_code}</p>
-                <p className="text-sm"><strong>Passenger:</strong> {selectedBooking.passenger_name || '-'}</p>
+                <p className="text-sm"><strong>Passenger:</strong> {selectedBooking.phone || '-'}</p>
                 <p className="text-sm"><strong>Phone:</strong> {selectedBooking.phone}</p>
                 <p className="text-sm"><strong>Seat:</strong> {selectedBooking.seat_number}</p>
               </div>

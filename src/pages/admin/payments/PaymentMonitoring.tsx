@@ -34,13 +34,10 @@ interface Payment {
   transaction_reference: string;
   amount: number;
   status: string;
-  payment_method: string;
-  transaction_id: string;
   created_at: string;
   bookings?: {
     ticket_code: string;
     phone: string;
-    passenger_name: string;
     trips?: {
       travel_date: string;
       routes?: {
