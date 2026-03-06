@@ -19,8 +19,8 @@ export default defineConfig(({ mode }) => ({
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "placeholder.svg"],
       manifest: {
-        name: "Bus Operator Dashboard",
-        short_name: "BusOps",
+        name: "BusLink Operator Dashboard",
+        short_name: "BusLink",
         description: "Bus Operator Fleet & Trip Management",
         theme_color: "#1e293b",
         background_color: "#0f172a",
@@ -68,7 +68,6 @@ export default defineConfig(({ mode }) => ({
       },
     },
   },
-  resolve: {
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),

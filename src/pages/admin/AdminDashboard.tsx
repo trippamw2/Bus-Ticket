@@ -3,38 +3,9 @@ import { Link, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAdminAuth } from '@/contexts/AdminAuthContext';
 import { Button } from '@/components/ui/button';
 import { 
-  Shield, 
-  Users, 
-  Settings, 
-  BarChart3, 
-  FileText,
-  Menu, 
-  X, 
-  LogOut,
-  LayoutDashboard,
-  Activity,
-  Bus,
-  Route,
-  Calendar,
-  Ticket,
-  CreditCard,
-  Wallet
-} from 'lucide-react';
-  Shield, 
-  Users, 
-  Settings, 
-  BarChart3, 
-  FileText,
-  Menu, 
-  X, 
-  LogOut,
-  LayoutDashboard,
-  Activity,
-  Bus,
-  Route,
-  Calendar,
-  Ticket,
-  CreditCard
+  Shield, Users, Settings, BarChart3, FileText,
+  Menu, X, LogOut, LayoutDashboard, Activity,
+  Bus, Route, Calendar, Ticket, CreditCard, Wallet
 } from 'lucide-react';
 
 const AdminDashboard = () => {
@@ -48,7 +19,7 @@ const AdminDashboard = () => {
     navigate('/admin/login');
   };
 
-const navItems = [
+  const navItems = [
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/enterprise', label: 'Enterprise', icon: Activity },
     { path: '/admin/operators', label: 'Operator Management', icon: Users },
@@ -62,22 +33,10 @@ const navItems = [
     { path: '/admin/reports', label: 'Reports', icon: BarChart3 },
     { path: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },
   ];
-    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { path: '/admin/enterprise', label: 'Enterprise', icon: Activity },
-    { path: '/admin/operators', label: 'Operator Management', icon: Users },
-    { path: '/admin/fleet', label: 'Fleet Management', icon: Bus },
-    { path: '/admin/routes', label: 'Route Management', icon: Route },
-    { path: '/admin/trips', label: 'Trip Management', icon: Calendar },
-    { path: '/admin/bookings', label: 'Booking Management', icon: Ticket },
-    { path: '/admin/payments', label: 'Payment Monitoring', icon: CreditCard },
-    { path: '/admin/settings', label: 'Platform Settings', icon: Settings },
-    { path: '/admin/reports', label: 'Reports', icon: BarChart3 },
-    { path: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },
-  ];
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <header className="bg-white border-b px-4 py-3 flex items-center justify-between lg:hidden">
+    <div className="min-h-screen bg-muted/30">
+      <header className="bg-background border-b px-4 py-3 flex items-center justify-between lg:hidden">
         <span className="font-bold text-lg flex items-center gap-2">
           <Shield className="h-5 w-5 text-primary" />
           BusLink Admin
@@ -101,7 +60,7 @@ const navItems = [
             <p className="text-xs text-gray-500 mt-1">{admin?.email}</p>
           </div>
           
-          <nav className="p-4 space-y-1">
+          <nav className="p-4 space-y-1 overflow-y-auto max-h-[calc(100vh-180px)]">
             {navItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
