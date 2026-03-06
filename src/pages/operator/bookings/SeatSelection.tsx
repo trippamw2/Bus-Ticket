@@ -145,7 +145,17 @@ export default function SeatSelection() {
     try {
       // Create bookings for each seat
       for (let i = 0; i < selectedSeats.length; i++) {
+      for (let i = 0; i < selectedSeats.length; i++) {
         const { error: bookingError } = await supabase
+          .from('bookings')
+          .insert({
+            trip_id: selectedTrip,
+            phone: passengerDetails[i].phone,
+            passenger_name: passengerDetails[i].name,
+            seat_number: selectedSeats[i],
+            status: 'pending',
+            ticket_type: 'one_way',
+          });
           .from('bookings')
           .insert({
             trip_id: selectedTrip,

@@ -79,7 +79,11 @@ Deno.serve(async (req) => {
 
     // POST: Create pending booking
     if (req.method === 'POST' && action !== 'confirm' && action !== 'fail') {
+    // POST: Create pending booking
+    if (req.method === 'POST' && action !== 'confirm' && action !== 'fail') {
       const body = await req.json();
+      const { phone, trip_id, ticket_type, passenger_name } = body;
+      if (!phone || !trip_id || !ticket_type) return errorResponse('Missing required fields: phone, trip_id, ticket_type');
       const { phone, trip_id, ticket_type } = body;
       if (!phone || !trip_id || !ticket_type) return errorResponse('Missing required fields: phone, trip_id, ticket_type');
 
@@ -109,7 +113,17 @@ Deno.serve(async (req) => {
       const operatorPhone = trip.routes?.operators?.phone || null;
 
       const ticketCode = generateTicketCode();
+      const ticketCode = generateTicketCode();
       const { data: booking, error: bookErr } = await supabase.from('bookings').insert({
+        phone,
+        passenger_name: passenger_name || null,
+        operator_phone: operatorPhone,
+        trip_id,
+        ticket_type,
+        amount,
+        ticket_code: ticketCode,
+        status: 'pending',
+      }).select().single();
         phone,
         operator_phone: operatorPhone,
         trip_id,

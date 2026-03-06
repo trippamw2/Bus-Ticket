@@ -22,6 +22,7 @@ import FleetManagement from "./pages/admin/fleet/FleetManagement";
 import RouteManagement from "./pages/admin/routes/RouteManagement";
 import TripManagement from "./pages/admin/trips/TripManagement";
 import BookingManagement from "./pages/admin/bookings/BookingManagement";
+import AgentManagement from "./pages/admin/agents/AgentManagement";
 import PaymentMonitoring from "./pages/admin/payments/PaymentMonitoring";
 import PlatformSettings from "./pages/admin/settings/PlatformSettings";
 import ReportsDashboard from "./pages/admin/reports/ReportsDashboard";
@@ -149,7 +150,8 @@ function AppRoutes() {
 <Route path="fleet" element={<FleetManagement />} />
 <Route path="routes" element={<RouteManagement />} />
 <Route path="trips" element={<TripManagement />} />
-        <Route path="bookings" element={<BookingManagement />} />
+<Route path="bookings" element={<BookingManagement />} />
+        <Route path="agents" element={<AgentManagement />} />
         <Route path="payments" element={<PaymentMonitoring />} />
         <Route path="settings" element={<PlatformSettings />} />
         <Route path="reports" element={<ReportsDashboard />} />

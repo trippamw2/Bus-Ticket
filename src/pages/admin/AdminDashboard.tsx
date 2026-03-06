@@ -17,6 +17,23 @@ import {
   Route,
   Calendar,
   Ticket,
+  CreditCard,
+  Wallet
+} from 'lucide-react';
+  Shield, 
+  Users, 
+  Settings, 
+  BarChart3, 
+  FileText,
+  Menu, 
+  X, 
+  LogOut,
+  LayoutDashboard,
+  Activity,
+  Bus,
+  Route,
+  Calendar,
+  Ticket,
   CreditCard
 } from 'lucide-react';
 
@@ -31,7 +48,20 @@ const AdminDashboard = () => {
     navigate('/admin/login');
   };
 
-  const navItems = [
+const navItems = [
+    { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { path: '/admin/enterprise', label: 'Enterprise', icon: Activity },
+    { path: '/admin/operators', label: 'Operator Management', icon: Users },
+    { path: '/admin/agents', label: 'Agent Management', icon: Wallet },
+    { path: '/admin/fleet', label: 'Fleet Management', icon: Bus },
+    { path: '/admin/routes', label: 'Route Management', icon: Route },
+    { path: '/admin/trips', label: 'Trip Management', icon: Calendar },
+    { path: '/admin/bookings', label: 'Booking Management', icon: Ticket },
+    { path: '/admin/payments', label: 'Payment Monitoring', icon: CreditCard },
+    { path: '/admin/settings', label: 'Platform Settings', icon: Settings },
+    { path: '/admin/reports', label: 'Reports', icon: BarChart3 },
+    { path: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },
+  ];
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/enterprise', label: 'Enterprise', icon: Activity },
     { path: '/admin/operators', label: 'Operator Management', icon: Users },
