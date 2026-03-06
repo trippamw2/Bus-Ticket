@@ -31,12 +31,13 @@ interface Booking {
   id: string;
   ticket_code: string;
   phone: string;
-  passenger_name: string;
   trip_id: string;
-  seat_number: number;
+  seat_number: number | null;
   amount: number;
   status: string;
   created_at: string;
+  ticket_type: string;
+  operator_phone: string | null;
   trips?: {
     travel_date: string;
     departure_time: string;

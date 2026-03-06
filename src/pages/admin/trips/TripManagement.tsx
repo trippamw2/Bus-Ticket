@@ -37,7 +37,7 @@ interface Trip {
   total_seats: number;
   available_seats: number;
   status: string;
-  delay_minutes: number;
+  operator_id: string | null;
   created_at: string;
   routes?: {
     origin: string;
@@ -53,8 +53,7 @@ interface Trip {
 interface Booking {
   id: string;
   phone: string;
-  passenger_name: string;
-  seat_number: number;
+  seat_number: number | null;
   amount: number;
   status: string;
   ticket_code: string;

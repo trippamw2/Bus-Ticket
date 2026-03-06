@@ -82,7 +82,6 @@ const PaymentMonitoring = () => {
         bookings:booking_id (
           ticket_code,
           phone,
-          passenger_name,
           trips:trip_id (
             travel_date,
             routes:route_id (origin, destination)

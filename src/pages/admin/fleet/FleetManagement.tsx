@@ -27,12 +27,10 @@ import {
   Users, Filter, RefreshCw, AlertTriangle
 } from 'lucide-react';
 
-interface Bus {
+interface BusData {
   id: string;
   plate_number: string;
-  operator_id: string | null;
-  bus_type: string;
-  seat_count: number;
+  operator_id: string;
   capacity: number;
   status: string;
   created_at: string;
