@@ -10,16 +10,16 @@ import OperatorRegister from "./pages/OperatorRegister";
 import OperatorLogin from "./pages/operator/OperatorLogin";
 import OperatorDashboard from "./pages/operator/OperatorDashboard";
 import DashboardHome from "./pages/operator/DashboardHome";
-import FleetManagement from "./pages/operator/fleet/FleetManagement";
-import RouteManagement from "./pages/operator/routes/RouteManagement";
+import OperatorFleetManagement from "./pages/operator/fleet/FleetManagement";
+import OperatorRouteManagement from "./pages/operator/routes/RouteManagement";
 import CreateTrip from "./pages/operator/trips/CreateTrip";
 import TripMonitoring from "./pages/operator/trips/TripMonitoring";
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminDashboardHome from "./pages/admin/AdminDashboardHome";
 import OperatorManagement from "./pages/admin/operators/OperatorManagement";
-import FleetManagement from "./pages/admin/fleet/FleetManagement";
-import RouteManagement from "./pages/admin/routes/RouteManagement";
+import AdminFleetManagement from "./pages/admin/fleet/FleetManagement";
+import AdminRouteManagement from "./pages/admin/routes/RouteManagement";
 import TripManagement from "./pages/admin/trips/TripManagement";
 import BookingManagement from "./pages/admin/bookings/BookingManagement";
 import AgentManagement from "./pages/admin/agents/AgentManagement";
@@ -110,8 +110,8 @@ function AppRoutes() {
         <Route index element={<Navigate to="/operator/dashboard" replace />} />
         <Route path="dashboard" element={<DashboardHome />} />
         <Route path="organization" element={<OrganizationSettings />} />
-        <Route path="fleet" element={<FleetManagement />} />
-        <Route path="routes" element={<RouteManagement />} />
+        <Route path="fleet" element={<OperatorFleetManagement />} />
+        <Route path="routes" element={<OperatorRouteManagement />} />
         <Route path="trips/create" element={<CreateTrip />} />
         <Route path="trips" element={<TripMonitoring />} />
         <Route path="finance" element={<FinanceDashboard />} />
@@ -147,8 +147,8 @@ function AppRoutes() {
         <Route path="dashboard" element={<AdminDashboardHome />} />
         <Route path="enterprise" element={<EnterpriseDashboard />} />
 <Route path="operators" element={<OperatorManagement />} />
-<Route path="fleet" element={<FleetManagement />} />
-<Route path="routes" element={<RouteManagement />} />
+<Route path="fleet" element={<AdminFleetManagement />} />
+<Route path="routes" element={<AdminRouteManagement />} />
 <Route path="trips" element={<TripManagement />} />
 <Route path="bookings" element={<BookingManagement />} />
         <Route path="agents" element={<AgentManagement />} />

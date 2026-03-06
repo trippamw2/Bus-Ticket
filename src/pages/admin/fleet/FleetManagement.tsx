@@ -27,12 +27,10 @@ import {
   Users, Filter, RefreshCw, AlertTriangle
 } from 'lucide-react';
 
-interface Bus {
+interface BusData {
   id: string;
   plate_number: string;
-  operator_id: string | null;
-  bus_type: string;
-  seat_count: number;
+  operator_id: string;
   capacity: number;
   status: string;
   created_at: string;
@@ -60,7 +58,7 @@ const STATUS_OPTIONS = [
 ];
 
 const FleetManagement = () => {
-  const [buses, setBuses] = useState<Bus[]>([]);
+  const [buses, setBuses] = useState<BusData[]>([]);
   const [operators, setOperators] = useState<Operator[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
@@ -72,7 +70,7 @@ const FleetManagement = () => {
   const [disableDialogOpen, setDisableDialogOpen] = useState(false);
   
   // Selected bus
-  const [selectedBus, setSelectedBus] = useState<Bus | null>(null);
+  const [selectedBus, setSelectedBus] = useState<BusData | null>(null);
   
   // Forms
   const [editForm, setEditForm] = useState({

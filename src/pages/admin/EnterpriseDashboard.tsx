@@ -283,50 +283,40 @@ const EnterpriseDashboard = () => {
     // Get recent bookings
     const recentBookings = await supabase
       .from('bookings')
-      .select('id, passenger_name, status, created_at, amount')
+      .select('id, phone, status, created_at, amount')
       .gte('created_at', todayStr)
       .order('created_at', { ascending: false })
       .limit(10);
 
     if (recentBookings.data) {
-      recentBookings.data.forEach(b => {
+      recentBookings.data.forEach((b: any) => {
         newActivities.push({
           id: `booking-${b.id}`,
           type: 'booking',
           message: b.status === 'paid' 
-            ? `New booking: ${b.passenger_name || 'Passenger'} - MWK ${b.amount?.toLocaleString()}`
-            : `Booking failed: ${b.passenger_name || 'Passenger'}`,
+            ? `New booking: ${b.phone} - MWK ${b.amount?.toLocaleString()}`
+            : `Booking failed: ${b.phone}`,
           timestamp: b.created_at,
           details: b.status
         });
       });
     }
 
-    // Get trip delays
+    // Get trip delays from trip_delays table
     const delayedTrips = await supabase
-      .from('trips')
-      .select('id, departure_time, delay_minutes, route_id')
-      .gte('departure_time', todayStr)
-      .gt('delay_minutes', 0)
-      .order('departure_time', { ascending: false })
+      .from('trip_delays')
+      .select('id, trip_id, reason, new_departure_time, created_at')
+      .order('created_at', { ascending: false })
       .limit(5);
 
     if (delayedTrips.data) {
-      for (const trip of delayedTrips.data) {
-        const routeRes = await supabase
-          .from('routes')
-          .select('origin, destination')
-          .eq('id', trip.route_id)
-          .single();
-        
-        const routeName = routeRes.data ? `${routeRes.data.origin} → ${routeRes.data.destination}` : 'Unknown';
-        
+      for (const delay of delayedTrips.data) {
         newActivities.push({
-          id: `delay-${trip.id}`,
+          id: `delay-${delay.id}`,
           type: 'delay',
-          message: `Trip delayed by ${trip.delay_minutes} minutes`,
-          timestamp: trip.departure_time,
-          details: routeName
+          message: `Trip delayed: ${delay.reason || 'Unknown reason'}`,
+          timestamp: delay.created_at || '',
+          details: delay.new_departure_time || ''
         });
       }
     }

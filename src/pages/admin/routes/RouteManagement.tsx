@@ -29,12 +29,9 @@ import {
 
 interface RouteData {
   id: string;
-  operator_id: string | null;
+  operator_id: string;
   origin: string;
   destination: string;
-  distance_km: number | null;
-  estimated_duration: string | null;
-  base_price: number | null;
   one_way_price: number;
   return_price: number;
   status: string;
