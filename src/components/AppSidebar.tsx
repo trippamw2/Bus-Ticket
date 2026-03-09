@@ -1,93 +1,152 @@
-import { Bus, Map, CalendarPlus, BarChart3, LogOut, Users, Settings, CreditCard, FileText, Shield, Bell } from "lucide-react";
+import { BarChart3, Bus, Map, CalendarPlus, Users, FileText, CreditCard, Settings, LogOut, Menu, X, Wallet, Bell, Shield, ChevronDown, TrendingUp } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarFooter,
-  useSidebar,
-} from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { useState } from "react";
 
-const menuItems = [
-  { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
-  { title: "Fleet", url: "/dashboard/fleet", icon: Bus },
-  { title: "Routes", url: "/dashboard/routes", icon: Map },
-  { title: "Create Trip", url: "/dashboard/trips/create", icon: CalendarPlus },
-  { title: "Trip Monitor", url: "/dashboard/trips/monitor", icon: BarChart3 },
-  { title: "Passengers", url: "/dashboard/passengers", icon: Users },
-  { title: "Bookings", url: "/dashboard/bookings", icon: FileText },
-  { title: "Finance", url: "/dashboard/finance", icon: CreditCard },
-  { title: "Wallet", url: "/dashboard/wallet", icon: CreditCard },
-  { title: "Loyalty", url: "/dashboard/loyalty", icon: Users },
-  { title: "Notifications", url: "/dashboard/notifications", icon: Bell },
-  { title: "Security", url: "/dashboard/security", icon: Shield },
-  { title: "Audit Logs", url: "/dashboard/audit", icon: FileText },
-  { title: "Settings", url: "/dashboard/settings", icon: Settings },
+const menuGroups = [
+  {
+    title: "Overview",
+    items: [
+      { title: "Dashboard", url: "/dashboard", icon: BarChart3 },
+    ]
+  },
+  {
+    title: "Operations",
+    items: [
+      { title: "Fleet", url: "/dashboard/fleet", icon: Bus },
+      { title: "Routes", url: "/dashboard/routes", icon: Map },
+      { title: "Create Trip", url: "/dashboard/trips/create", icon: CalendarPlus },
+      { title: "Trip Monitor", url: "/dashboard/trips/monitor", icon: TrendingUp },
+    ]
+  },
+  {
+    title: "Business",
+    items: [
+      { title: "Passengers", url: "/dashboard/passengers", icon: Users },
+      { title: "Bookings", url: "/dashboard/bookings", icon: FileText },
+      { title: "Wallet", url: "/dashboard/wallet", icon: Wallet },
+    ]
+  },
+  {
+    title: "Finance",
+    items: [
+      { title: "Finance", url: "/dashboard/finance", icon: CreditCard },
+    ]
+  },
+  {
+    title: "Settings",
+    items: [
+      { title: "Settings", url: "/dashboard/settings", icon: Settings },
+    ]
+  }
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
-  const collapsed = state === "collapsed";
   const location = useLocation();
-  const { signOut } = useAuth();
+  const { signOut, operator } = useAuth();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [expandedGroups, setExpandedGroups] = useState<string[]>(menuGroups.map(g => g.title));
+
+  const toggleGroup = (title: string) => {
+    setExpandedGroups(prev => 
+      prev.includes(title) ? prev.filter(t => t !== title) : [...prev, title]
+    );
+  };
 
   return (
-    <Sidebar collapsible="icon" className="h-screen">
-      <SidebarContent className="h-full flex flex-col">
-        {/* Logo / Brand */}
-        <div className="h-14 flex items-center px-4 border-b">
-          {!collapsed && <span className="font-bold text-lg">BusLink</span>}
-          {collapsed && <span className="font-bold text-lg">B</span>}
+    <>
+      {/* Mobile toggle button */}
+      <Button 
+        variant="ghost" 
+        size="icon"
+        className="lg:hidden fixed top-3 left-3 z-50 bg-white shadow-md"
+        onClick={() => setMobileOpen(!mobileOpen)}
+      >
+        {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+      </Button>
+
+      {/* Sidebar */}
+      <aside className={`
+        fixed top-0 left-0 z-40 h-screen w-64 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white shadow-2xl
+        transform transition-transform duration-300 lg:translate-x-0
+        ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
+        {/* Logo */}
+        <div className="h-16 px-4 flex items-center border-b border-slate-700/50">
+          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <Bus className="h-5 w-5 text-white" />
+          </div>
+          <div className="ml-3">
+            <span className="font-bold text-xl">BusLink</span>
+            <p className="text-xs text-slate-400">Operator</p>
+          </div>
         </div>
         
-        {/* Menu Items - scrollable */}
-        <div className="flex-1 overflow-y-auto py-2">
-          <SidebarGroup>
-            <SidebarGroupLabel>
-              {!collapsed && <span className="text-xs uppercase tracking-wider">Menu</span>}
-            </SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {menuItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton asChild>
-                      <NavLink
-                        to={item.url}
-                        end={item.url === "/dashboard"}
-                        className="hover:bg-sidebar-accent/50"
-                        activeClassName="bg-sidebar-accent text-sidebar-primary font-medium"
-                      >
-                        <item.icon className="h-4 w-4" />
-                        {!collapsed && <span>{item.title}</span>}
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
+        {/* Operator Info */}
+        <div className="px-4 py-3 border-b border-slate-700/50 bg-slate-800/30">
+          <p className="text-sm font-medium text-white truncate">{operator?.name || 'Operator'}</p>
+          <p className="text-xs text-emerald-400">● Active</p>
         </div>
         
-        {/* Footer - logout */}
-        <SidebarFooter className="border-t shrink-0">
-          <Button
-            variant="ghost"
-            className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent"
+        {/* Navigation - Grouped & Scrollable */}
+        <nav className="p-3 overflow-y-auto h-[calc(100vh-180px)]">
+          {menuGroups.map((group) => (
+            <div key={group.title} className="mb-4">
+              <button
+                onClick={() => toggleGroup(group.title)}
+                className="flex items-center justify-between w-full px-3 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-200"
+              >
+                {group.title}
+                <ChevronDown className={`h-3 w-3 transition-transform ${expandedGroups.includes(group.title) ? 'rotate-180' : ''}`} />
+              </button>
+              <div className={`space-y-1 overflow-hidden transition-all ${expandedGroups.includes(group.title) ? 'max-h-96 mt-1' : 'max-h-0'}`}>
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = location.pathname === item.url;
+                  return (
+                    <NavLink
+                      key={item.url}
+                      to={item.url}
+                      onClick={() => setMobileOpen(false)}
+                      className={`flex items-center gap-3 px-4 py-2.5 rounded-xl transition-all duration-200 group ${
+                        isActive 
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25' 
+                          : 'text-slate-300 hover:bg-slate-800/50 hover:text-white'
+                      }`}
+                      activeClassName="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25"
+                    >
+                      <Icon className={`h-4 w-4 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
+                      <span className="text-sm font-medium">{item.title}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </nav>
+
+        {/* Footer */}
+        <div className="absolute bottom-0 left-0 right-0 p-3 border-t border-slate-700/50 bg-slate-900/50">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-slate-300 hover:text-white hover:bg-slate-800/50 rounded-xl"
             onClick={signOut}
           >
-            <LogOut className="h-4 w-4" />
-            {!collapsed && <span>Sign Out</span>}
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
           </Button>
-        </SidebarFooter>
-      </SidebarContent>
-    </Sidebar>
+        </div>
+      </aside>
+
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+    </>
   );
 }

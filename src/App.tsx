@@ -47,12 +47,13 @@ import DocumentExpiryAlerts from "./pages/operator/fleet/DocumentExpiryAlerts";
 import MaintenanceScheduling from "./pages/operator/fleet/MaintenanceScheduling";
 import SecurityAlertsDashboard from "./pages/operator/security/SecurityAlertsDashboard";
 import EnterpriseDashboard from "./pages/admin/EnterpriseDashboard";
+import DriverManagement from "./pages/admin/drivers/DriverManagement";
+import SettlementManagement from "./pages/admin/settlements/SettlementManagement";
+import SMSLogs from "./pages/admin/sms/SMSLogs";
 import { OperatorUserProvider } from "./contexts/OperatorUserContext";
-
 
 const queryClient = new QueryClient();
 
-// Protected Route wrapper for operators
 function OperatorProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   
@@ -71,7 +72,6 @@ function OperatorProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Protected Route wrapper for admin
 function AdminProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, admin, loading } = useAdminAuth();
   
@@ -133,7 +133,6 @@ function AppRoutes() {
         <Route path="security" element={<SecurityAlertsDashboard />} />
       </Route>
 
-      
       {/* Admin Auth */}
       <Route path="/admin/login" element={<AdminLogin />} />
       
@@ -146,13 +145,16 @@ function AppRoutes() {
         <Route index element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="dashboard" element={<AdminDashboardHome />} />
         <Route path="enterprise" element={<EnterpriseDashboard />} />
-<Route path="operators" element={<OperatorManagement />} />
-<Route path="fleet" element={<AdminFleetManagement />} />
-<Route path="routes" element={<AdminRouteManagement />} />
-<Route path="trips" element={<TripManagement />} />
-<Route path="bookings" element={<BookingManagement />} />
+        <Route path="operators" element={<OperatorManagement />} />
         <Route path="agents" element={<AgentManagement />} />
+        <Route path="drivers" element={<DriverManagement />} />
+        <Route path="fleet" element={<AdminFleetManagement />} />
+        <Route path="routes" element={<AdminRouteManagement />} />
+        <Route path="trips" element={<TripManagement />} />
+        <Route path="bookings" element={<BookingManagement />} />
         <Route path="payments" element={<PaymentMonitoring />} />
+        <Route path="settlements" element={<SettlementManagement />} />
+        <Route path="sms" element={<SMSLogs />} />
         <Route path="settings" element={<PlatformSettings />} />
         <Route path="reports" element={<ReportsDashboard />} />
         <Route path="audit-logs" element={<AuditLogs />} />
