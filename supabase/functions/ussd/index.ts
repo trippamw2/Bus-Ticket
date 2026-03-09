@@ -182,17 +182,18 @@ ${SUPPORT_NUMBER}`;
     }
 
     const price = inputs[1] == "2" ? trip.routes?.return_price : trip.routes?.one_way_price;
+    const operatorName = trip.operators?.name || "Bus";
 
     response = `CON Confirm Booking
 Passenger: ${passengerName}
 Route: ${route?.origin} → ${route?.destination}
+Operator: ${operatorName}
 Date: ${trip.travel_date}
 Time: ${trip.departure_time}
 Price: MWK ${price}
 
 1. Confirm
 2. Cancel`;
-  }
 
   // =============================
   // FINAL BOOKING - CREATE
@@ -209,7 +210,7 @@ Price: MWK ${price}
 
     const { data: trips } = await supabase
       .from("trips")
-      .select("*, routes(one_way_price, return_price, operator_id, operators:operator_id(phone))")
+      .select("*, routes(one_way_price, return_price, operator_id, operators:operator_id(name, phone))")
       .eq("route_id", route?.id);
 
     const trip = trips?.[tripIndex];

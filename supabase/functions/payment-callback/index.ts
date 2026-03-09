@@ -235,15 +235,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get route info for SMS
+    // Get route and operator info for SMS
     const trips: any = await sbQuery(
       "trips",
-      `id=eq.${booking.trip_id}&select=*,routes(origin,destination)`
+      `id=eq.${booking.trip_id}&select=*,routes(origin,destination),operators:operator_id(name)`
     );
     const trip = trips?.[0];
     const routeLabel = trip?.routes
       ? `${trip.routes.origin} → ${trip.routes.destination}`
       : "Route";
+    const operatorName = trip?.operators?.name || "Bus Operator";
 
     // Send confirmation SMS
     const smsMessage = `BusTicket Malawi
@@ -251,6 +252,7 @@ Deno.serve(async (req) => {
 Ticket: ${booking.ticket_code}
 Passenger: ${booking.passenger_name || "Passenger"}
 Route: ${routeLabel}
+Operator: ${operatorName}
 Date: ${booking.travel_date}
 Time: ${booking.departure_time}
 Seat: ${confirmResult.seat_number}
