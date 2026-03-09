@@ -50,7 +50,7 @@ const DriverManagement = () => {
       return;
     }
     const { error } = await supabase.from('drivers').insert({
-      name: formData.name,
+      full_name: formData.name,
       phone: formData.phone,
       license_number: formData.license_number || null,
       operator_id: formData.operator_id || null,

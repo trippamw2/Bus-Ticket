@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { toast } from 'sonner';
 import { DollarSign, TrendingUp, TrendingDown, Download, Calendar } from 'lucide-react';
 
 interface Settlement {
@@ -18,339 +19,109 @@ interface Settlement {
   net_amount: number;
   status: string;
   paid_at: string | null;
-  payment_reference: string | null;
-  created_at: string;
-}
-
-interface PlatformSettings {
-  default_commission: number;
-  cancellation_fee: number;
-  change_fee: number;
 }
 
 export default function FinanceDashboard() {
   const { operator } = useAuth();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [platformSettings, setPlatformSettings] = useState<PlatformSettings>({
-    default_commission: 10,
-    cancellation_fee: 0,
-    change_fee: 0,
-  });
-  const [stats, setStats] = useState({
-    totalRevenue: 0,
-    totalCommission: 0,
-    totalAirtelFees: 0,
-    totalVat: 0,
-    netPayable: 0,
-    pendingSettlements: 0,
-  });
+  const [stats, setStats] = useState({ totalRevenue: 0, totalCommission: 0, totalAirtelFees: 0, totalVat: 0, netPayable: 0, pendingSettlements: 0 });
   const [recentBookings, setRecentBookings] = useState<any[]>([]);
-  const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  useEffect(() => {
-    if (operator) {
-      fetchSettlements();
-      fetchPlatformSettings();
-      fetchRevenueData();
-    }
-  }, [operator, operator?.id]);
 
-  const fetchPlatformSettings = async () => {
-    try {
-      const { data } = await supabase
-        .from('platform_settings')
-        .select('*')
-        .limit(1)
-        .single();
-      
-      if (data) {
-        setPlatformSettings({
-          default_commission: data.default_commission || 10,
-          cancellation_fee: data.cancellation_fee || 0,
-          change_fee: data.change_fee || 0,
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching platform settings:', err);
-    }
-  };
+  useEffect(() => { if (operator) { fetchSettlements(); fetchRevenueData(); } }, [operator, operator?.id]);
 
   const fetchSettlements = async () => {
     if (!operator) return;
     setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('settlements')
-        .select('*')
-        .eq('operator_id', operator.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) throw error;
-      setSettlements(data || []);
-
-      const totals = (data || []).reduce((acc, s) => ({
-        totalRevenue: acc.totalRevenue + s.gross_amount,
-        totalCommission: acc.totalCommission + s.commission_amount,
-        totalAirtelFees: acc.totalAirtelFees + s.airtel_fee,
-        totalVat: acc.totalVat + s.vat_amount,
-        netPayable: acc.netPayable + s.net_amount,
-        pendingSettlements: acc.pendingSettlements + (s.status === 'pending' ? 1 : 0),
-      }), {
-        totalRevenue: 0,
-        totalCommission: 0,
-        totalAirtelFees: 0,
-        totalVat: 0,
-        netPayable: 0,
-        pendingSettlements: 0,
-      });
-      setStats(totals);
-    } catch (err) {
-      console.error('Error fetching settlements:', err);
-    } finally {
-      setLoading(false);
-    }
+    const { data } = await supabase.from('settlements').select('*').eq('operator_id', operator.id).order('created_at', { ascending: false }).limit(50);
+    setSettlements(data || []);
+    const totals = (data || []).reduce((acc, s) => ({
+      totalRevenue: acc.totalRevenue + (s.gross_amount || 0),
+      totalCommission: acc.totalCommission + (s.commission_amount || 0),
+      totalAirtelFees: acc.totalAirtelFees + (s.airtel_fee || 0),
+      totalVat: acc.totalVat + (s.vat_amount || 0),
+      netPayable: acc.netPayable + (s.net_amount || 0),
+      pendingSettlements: acc.pendingSettlements + (s.status === 'pending' ? 1 : 0),
+    }), { totalRevenue: 0, totalCommission: 0, totalAirtelFees: 0, totalVat: 0, netPayable: 0, pendingSettlements: 0 });
+    setStats(totals);
+    setLoading(false);
   };
 
   const fetchRevenueData = async () => {
     if (!operator) return;
-    try {
-      // Fetch recent paid bookings for this operator
-      const { data: bookings } = await supabase
-        .from('bookings')
-        .select(`
-          id,
-          amount,
-          status,
-          created_at,
-          trips:trips(route_id, travel_date, routes:routes(origin, destination))
-        `)
-        .eq('status', 'paid')
-        .order('created_at', { ascending: false })
-        .limit(100);
-
-      if (bookings) {
-        setRecentBookings(bookings);
-      }
-    } catch (err) {
-      console.error('Error fetching revenue data:', err);
-    }
+    const { data } = await supabase.from('bookings').select('id, amount, status, created_at').eq('status', 'paid').order('created_at', { ascending: false }).limit(10);
+    setRecentBookings(data || []);
   };
 
   const handleExport = () => {
-    // Export settlements to CSV
-    const headers = ['Period Start', 'Period End', 'Gross Amount', 'Commission', 'Airtel Fee', 'VAT', 'Net Amount', 'Status', 'Paid Date'];
-    const rows = settlements.map(s => [
-      s.settlement_period_start,
-      s.settlement_period_end,
-      s.gross_amount,
-      s.commission_amount,
-      s.airtel_fee,
-      s.vat_amount,
-      s.net_amount,
-      s.status,
-      s.paid_at || '-',
-    ]);
-    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
+    const headers = ['Period Start', 'Period End', 'Gross', 'Commission', 'Airtel Fee', 'VAT', 'Net', 'Status'];
+    const rows = settlements.map(s => [s.settlement_period_start, s.settlement_period_end, s.gross_amount, s.commission_amount, s.airtel_fee, s.vat_amount, s.net_amount, s.status]);
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
     const link = document.createElement('a');
-    link.href = url;
+    link.href = URL.createObjectURL(blob);
     link.download = `settlements_${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
-    toast.success('Statement exported successfully');
+    toast.success('Statement exported');
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-MW', {
-      style: 'currency',
-      currency: 'MWK',
-    }).format(amount);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-      pending: 'secondary',
-      processing: 'default',
-      paid: 'default',
-      frozen: 'destructive',
-      disputed: 'outline',
-    };
-    return <Badge variant={variants[status] || 'outline'}>{status}</Badge>;
-  };
-
-  const commissionPercent = operator?.commission_percent || platformSettings.default_commission;
+  const fmt = (amount: number) => new Intl.NumberFormat('en-MW', { style: 'currency', currency: 'MWK' }).format(amount);
+  const commissionPercent = operator?.commission_percent || 10;
 
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Financial Dashboard</h1>
-          <p className="text-muted-foreground">Track revenue, fees, and settlements</p>
-        </div>
-        <Button variant="outline" onClick={handleExport}>
-          <Download className="mr-2 h-4 w-4" />
-          Export Statement
-        </Button>
+        <div><h1 className="text-3xl font-bold">Financial Dashboard</h1><p className="text-muted-foreground">Track revenue, fees, and settlements</p></div>
+        <Button variant="outline" onClick={handleExport}><Download className="mr-2 h-4 w-4" />Export</Button>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Gross Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalRevenue)}</div>
-            <p className="text-xs text-muted-foreground">Total bookings value</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Platform Commission</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalCommission)}</div>
-            <p className="text-xs text-muted-foreground">{commissionPercent}% platform fee</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Airtel Fees & VAT</CardTitle>
-            <TrendingDown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.totalAirtelFees + stats.totalVat)}</div>
-            <p className="text-xs text-muted-foreground">2% + 800 MWK VAT</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Net Payable</CardTitle>
-            <TrendingUp className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">{formatCurrency(stats.netPayable)}</div>
-            <p className="text-xs text-muted-foreground">{stats.pendingSettlements} pending</p>
-          </CardContent>
-        </Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Gross Revenue</CardTitle><DollarSign className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(stats.totalRevenue)}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Commission</CardTitle><TrendingDown className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(stats.totalCommission)}</div><p className="text-xs text-muted-foreground">{commissionPercent}% platform fee</p></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Fees & VAT</CardTitle><TrendingDown className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{fmt(stats.totalAirtelFees + stats.totalVat)}</div></CardContent></Card>
+        <Card><CardHeader className="flex flex-row items-center justify-between pb-2"><CardTitle className="text-sm">Net Payable</CardTitle><TrendingUp className="h-4 w-4 text-green-500" /></CardHeader><CardContent><div className="text-2xl font-bold text-green-600">{fmt(stats.netPayable)}</div></CardContent></Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Fee Breakdown</CardTitle>
-          <CardDescription>How your revenue is calculated</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>Settlement History</CardTitle></CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center">
-              <span>Gross Revenue</span>
-              <span className="font-medium">{formatCurrency(stats.totalRevenue)}</span>
-            </div>
-            <div className="flex justify-between items-center text-muted-foreground">
-              <span>- Platform Commission ({commissionPercent}%)</span>
-              <span>- {formatCurrency(stats.totalCommission)}</span>
-            </div>
-            <div className="flex justify-between items-center text-muted-foreground">
-              <span>- Airtel Processing (2%)</span>
-              <span>- {formatCurrency(stats.totalAirtelFees)}</span>
-            </div>
-            <div className="flex justify-between items-center text-muted-foreground">
-              <span>- VAT (800 MWK per transaction)</span>
-              <span>- {formatCurrency(stats.totalVat)}</span>
-            </div>
-            <div className="border-t pt-4 flex justify-between items-center">
-              <span className="font-bold">Net Payable</span>
-              <span className="font-bold text-green-600">{formatCurrency(stats.netPayable)}</span>
-            </div>
-          </div>
+          {loading ? <div className="text-center py-4">Loading...</div> :
+          settlements.length === 0 ? <div className="text-center py-4 text-muted-foreground">No settlements yet</div> :
+          <Table>
+            <TableHeader><TableRow><TableHead>Period</TableHead><TableHead>Gross</TableHead><TableHead>Commission</TableHead><TableHead>Fees</TableHead><TableHead>Net</TableHead><TableHead>Status</TableHead><TableHead>Paid</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {settlements.map(s => (
+                <TableRow key={s.id}>
+                  <TableCell><div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" />{new Date(s.settlement_period_start).toLocaleDateString()} - {new Date(s.settlement_period_end).toLocaleDateString()}</div></TableCell>
+                  <TableCell>{fmt(s.gross_amount)}</TableCell>
+                  <TableCell className="text-muted-foreground">-{fmt(s.commission_amount)}</TableCell>
+                  <TableCell className="text-muted-foreground">-{fmt((s.airtel_fee || 0) + (s.vat_amount || 0))}</TableCell>
+                  <TableCell className="font-medium">{fmt(s.net_amount)}</TableCell>
+                  <TableCell><Badge variant={s.status === 'paid' ? 'default' : 'secondary'}>{s.status}</Badge></TableCell>
+                  <TableCell>{s.paid_at ? new Date(s.paid_at).toLocaleDateString() : '-'}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>}
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Settlement History</CardTitle>
-          <CardDescription>Your past settlements</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>Recent Revenue</CardTitle></CardHeader>
         <CardContent>
-          {loading ? (
-            <div className="text-center py-4">Loading...</div>
-          ) : settlements.length === 0 ? (
-            <div className="text-center py-4 text-muted-foreground">
-              No settlements yet. Complete trips to start earning.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Period</TableHead>
-                  <TableHead>Gross</TableHead>
-                  <TableHead>Commission</TableHead>
-                  <TableHead>Fees</TableHead>
-                  <TableHead>Net</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Paid Date</TableHead>
+          {recentBookings.length === 0 ? <div className="text-center py-4 text-muted-foreground">No recent revenue</div> :
+          <Table>
+            <TableHeader><TableRow><TableHead>Date</TableHead><TableHead>Amount</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+            <TableBody>
+              {recentBookings.map((b: any) => (
+                <TableRow key={b.id}>
+                  <TableCell>{new Date(b.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell className="font-medium">{fmt(b.amount)}</TableCell>
+                  <TableCell><Badge variant="default">Paid</Badge></TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {settlements.map((settlement) => (
-                  <TableRow key={settlement.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Calendar className="h-4 w-4 text-muted-foreground" />
-                        {new Date(settlement.settlement_period_start).toLocaleDateString()} - 
-                        {new Date(settlement.settlement_period_end).toLocaleDateString()}
-                      </div>
-                    </TableCell>
-                    <TableCell>{formatCurrency(settlement.gross_amount)}</TableCell>
-                    <TableCell className="text-muted-foreground">-{formatCurrency(settlement.commission_amount)}</TableCell>
-                    <TableCell className="text-muted-foreground">-{formatCurrency(settlement.airtel_fee + settlement.vat_amount)}</TableCell>
-                    <TableCell>{getStatusBadge(settlement.status)}</TableCell>
-                    <TableCell>
-                      {settlement.paid_at ? new Date(settlement.paid_at).toLocaleDateString() : '-'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Recent Revenue */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Revenue</CardTitle>
-          <CardDescription>Latest paid bookings</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {recentBookings.length === 0 ? (
-            <div className="text-center py-4 text-muted-foreground">
-              No recent revenue data
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Route</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {recentBookings.slice(0, 10).map((booking: any) => (
-                  <TableRow key={booking.id}>
-                    <TableCell>{new Date(booking.created_at).toLocaleDateString()}</TableCell>
-                    <TableCell>{booking.trips?.routes?.origin} → {booking.trips?.routes?.destination}</TableCell>
-                    <TableCell className="font-medium">{formatCurrency(booking.amount)}</TableCell>
-                    <TableCell><Badge variant="default">Paid</Badge></TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+              ))}
+            </TableBody>
+          </Table>}
         </CardContent>
       </Card>
     </div>
