@@ -43,6 +43,31 @@ export default function PassengerManifest() {
     if (selectedTrip) fetchPassengers();
   }, [selectedTrip]);
 
+  // Real-time subscription for bookings
+  useEffect(() => {
+    if (!selectedTrip) return;
+
+    const channel = supabase
+      .channel('operator-bookings')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings',
+          filter: `trip_id=eq.${selectedTrip}`
+        },
+        () => {
+          fetchPassengers();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedTrip]);
+
   const fetchTrips = async () => {
     if (!operator) return;
     try {
@@ -76,9 +101,9 @@ export default function PassengerManifest() {
       if (error) throw error;
       setBookings(data || []);
 
-      // Calculate stats
+      // Calculate stats - include pending_payment as pending
       const paid = (data || []).filter(b => b.status === 'paid').length;
-      const pending = (data || []).filter(b => b.status === 'pending').length;
+      const pending = (data || []).filter(b => b.status === 'pending' || b.status === 'pending_payment').length;
       const cancelled = (data || []).filter(b => b.status === 'cancelled').length;
       setStats({
         total: (data || []).length,

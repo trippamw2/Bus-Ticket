@@ -83,6 +83,27 @@ const BookingManagement = () => {
   useEffect(() => {
     fetchBookings();
     fetchTrips();
+
+    // Real-time subscription for bookings
+    const bookingsChannel = supabase
+      .channel('bookings-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'bookings'
+        },
+        (payload) => {
+          console.log('Booking change detected:', payload);
+          fetchBookings(); // Refresh on any change
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(bookingsChannel);
+    };
   }, []);
 
   const fetchBookings = async () => {
@@ -128,8 +149,11 @@ const BookingManagement = () => {
     switch (status) {
       case 'paid': return 'bg-green-500';
       case 'pending': return 'bg-yellow-500';
+      case 'pending_payment': return 'bg-yellow-500';
       case 'cancelled': return 'bg-red-500';
       case 'failed': return 'bg-gray-500';
+      case 'expired': return 'bg-gray-400';
+      case 'changed': return 'bg-blue-500';
       default: return 'bg-gray-500';
     }
   };

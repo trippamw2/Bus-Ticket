@@ -60,13 +60,16 @@ const AdminDashboard = () => {
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
       `}>
         {/* Logo */}
-        <div className="h-16 px-4 flex items-center border-b border-slate-700/50">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <Shield className="h-5 w-5 text-white" />
+        <div className="h-20 px-4 flex items-center border-b border-slate-700/50 bg-gradient-to-r from-blue-900/50 to-slate-900">
+          <div className="w-12 h-12 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <svg viewBox="0 0 24 24" fill="none" className="h-7 w-7 text-white" stroke="currentColor" strokeWidth="2">
+              <path d="M8 6v6h8V6M4 10h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z" />
+              <path d="M4 18v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 14l3-3 2 2 3-3" />
+            </svg>
           </div>
           <div className="ml-3">
-            <span className="font-bold text-xl">BusLink</span>
-            <p className="text-xs text-slate-400">Admin Panel</p>
+            <span className="font-bold text-xl tracking-tight">BusLink</span>
+            <p className="text-xs text-amber-400/80 font-medium">Malawi Bus Marketplace</p>
           </div>
         </div>
         

@@ -74,9 +74,20 @@ const OperatorLogin = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold">Bus Operator Portal</CardTitle>
-          <CardDescription>
+        <CardHeader className="space-y-1 pb-4">
+          {/* Branding */}
+          <div className="flex flex-col items-center mb-2">
+            <div className="w-14 h-14 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/20 mb-2">
+              <svg viewBox="0 0 24 24" fill="none" className="h-8 w-8 text-white" stroke="currentColor" strokeWidth="2">
+                <path d="M8 6v6h8V6M4 10h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4a2 2 0 012-2z" />
+                <path d="M4 18v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 14l3-3 2 2 3-3" />
+              </svg>
+            </div>
+            <h1 className="text-xl font-bold tracking-tight">BusLink</h1>
+            <p className="text-xs text-amber-600/80 font-medium">Operator Portal</p>
+          </div>
+          <CardTitle className="text-xl font-semibold text-center">Bus Operator</CardTitle>
+          <CardDescription className="text-center">
             Login or register to manage your fleet
           </CardDescription>
         </CardHeader>
