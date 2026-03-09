@@ -1,11 +1,10 @@
-// Payment Callback Edge Function
+// Payment Callback Edge Function - BusTicket Malawi
 // Handles payment confirmations from mobile money providers (Airtel Money, Mpamba)
-// This completes the booking flow: pending_payment → paid
 
 const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
 const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-// Simple fetch wrapper
+// Helper fetch wrappers
 async function sbQuery(table: string, query: string = "") {
   const res = await fetch(`${supabaseUrl}/rest/v1/${table}?${query}`, {
     headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}` },
@@ -51,29 +50,32 @@ async function sbRpc(name: string, params: object) {
   return res.json();
 }
 
-// SMS sending function
-async function sendSMS(phone: string, message: string, ticketCode: string, seatNumber: number, route: string, date: string, time: string) {
+// Send SMS helper
+async function sendSMS(phone: string, message: string, bookingId: number) {
+  await sbPost("sms_logs", {
+    phone,
+    message,
+    sms_type: "booking_confirmed",
+    status: "queued",
+    booking_id: bookingId,
+  });
+}
+
+async function sendFailedSMS(phone: string, ticketCode: string) {
   await sbPost("sms_logs", {
     phone,
     message: `BusTicket Malawi
 
-Ticket: ${ticketCode}
-Passenger: (see below)
-Route: ${route}
-Date: ${date}
-Time: ${time}
-Seat: ${seatNumber}
-
-Show this SMS when boarding.
-
-Support: +265982972977`,
-    sms_type: "booking_confirmed",
+Payment failed for Ticket: ${ticketCode}.
+Please try again or contact support: +265982972977`,
+    sms_type: "payment_failed",
     status: "queued",
   });
 }
 
+// Main edge function
 Deno.serve(async (req) => {
-  // Handle CORS
+  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, {
       headers: {
@@ -84,17 +86,16 @@ Deno.serve(async (req) => {
   }
 
   if (req.method !== "POST") {
-    return new Response("Method not allowed", {
-      status: 405,
-      headers: { "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: false, error: "Method not allowed" }),
+      { status: 405, headers: { "Content-Type": "application/json" } }
+    );
   }
 
   try {
-    // Support both webhook formats from different providers
     let body: any;
     const contentType = req.headers.get("content-type") || "";
-    
+
     if (contentType.includes("application/json")) {
       body = await req.json();
     } else {
@@ -104,13 +105,11 @@ Deno.serve(async (req) => {
 
     console.log("Payment callback received:", JSON.stringify(body));
 
-    // Extract payment reference (supports multiple formats)
-    const paymentRef = body.reference || body.transaction_ref || body.transactionReference || body.ref || body.ticket_code;
-    
-    // Extract status
+    const paymentRef =
+      body.reference || body.transaction_ref || body.transactionReference || body.ref || body.ticket_code;
+
     const paymentStatus = body.status || body.payment_status || body.statusCode || "";
-    
-    // Extract amount (optional)
+
     const amountPaid = body.amount || body.paid_amount || body.value;
 
     if (!paymentRef) {
@@ -120,20 +119,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Find the booking by ticket_code or transaction_reference
+    // Find booking
     let booking: any = null;
     let payment: any = null;
 
-    // Try finding by ticket_code first
-    const bookingsByCode: any = await sbQuery(
-      "bookings",
-      `ticket_code=eq.${paymentRef}&select=*`
-    );
-    if (bookingsByCode?.length > 0) {
-      booking = bookingsByCode[0];
-    }
+    const bookingsByCode: any = await sbQuery(`bookings`, `ticket_code=eq.${paymentRef}&select=*`);
+    if (bookingsByCode?.length > 0) booking = bookingsByCode[0];
 
-    // If not found by code, try by transaction reference
     if (!booking) {
       const paymentsByRef: any = await sbQuery(
         "payments",
@@ -156,7 +148,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if already processed
+    // Already paid
     if (booking.status === "paid") {
       return new Response(
         JSON.stringify({
@@ -169,25 +161,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Determine if payment is successful
+    // Determine success
     const isSuccess =
-      paymentStatus.toLowerCase() === "success" ||
-      paymentStatus.toLowerCase() === "completed" ||
-      paymentStatus.toLowerCase() === "successful" ||
+      paymentStatus.toString().toLowerCase() === "success" ||
+      paymentStatus.toString().toLowerCase() === "completed" ||
+      paymentStatus.toString().toLowerCase() === "successful" ||
       paymentStatus === "200" ||
       paymentStatus === "0";
 
     if (!isSuccess) {
-      // Payment failed - update booking status
-      await sbPatch("bookings", `id=eq.${booking.id}`, {
-        status: "failed",
-      });
-      
+      await sbPatch("bookings", `id=eq.${booking.id}`, { status: "failed" });
+
       if (payment) {
-        await sbPatch("payments", `id=eq.${payment.id}`, {
+        await sbPatch("payments", `id=eq.${payment.id}`, { status: "failed" });
+      } else {
+        await sbPost("payments", {
+          booking_id: booking.id,
+          transaction_reference: paymentRef,
+          amount: amountPaid || booking.amount,
           status: "failed",
+          payment_method: body.provider || body.network || "airtel_money",
         });
       }
+
+      await sendFailedSMS(booking.phone, booking.ticket_code);
 
       return new Response(
         JSON.stringify({
@@ -199,9 +196,18 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Payment successful - call confirm_booking RPC
-    console.log("Confirming booking:", booking.id);
-    
+    // Ensure payment record exists before confirming booking
+    if (!payment) {
+      await sbPost("payments", {
+        booking_id: booking.id,
+        transaction_reference: paymentRef,
+        amount: amountPaid || booking.amount,
+        status: "pending",
+        payment_method: body.provider || body.network || "airtel_money",
+      });
+    }
+
+    // Confirm booking RPC (assign seat)
     const confirmResult: any = await sbRpc("confirm_booking", {
       p_booking_id: booking.id,
     });
@@ -218,24 +224,18 @@ Deno.serve(async (req) => {
     }
 
     // Update payment status to success
-    if (payment) {
-      await sbPatch("payments", `id=eq.${payment.id}`, {
-        status: "success",
-        transaction_id: body.transaction_id || body.transactionId,
-      });
-    } else {
-      // Create payment record if doesn't exist
-      await sbPost("payments", {
-        booking_id: booking.id,
-        transaction_reference: paymentRef,
-        amount: amountPaid || booking.amount,
-        status: "success",
-        payment_method: body.provider || body.network || "airtel_money",
-        transaction_id: body.transaction_id || body.transactionId,
-      });
-    }
+    await sbPatch("payments", `transaction_reference=eq.${paymentRef}`, {
+      status: "success",
+      transaction_id: body.transaction_id || body.transactionId,
+    });
 
-    // Get route and operator info for SMS
+    // Update booking status to paid
+    await sbPatch("bookings", `id=eq.${booking.id}`, {
+      status: "paid",
+      seat_number: confirmResult.seat_number,
+    });
+
+    // Fetch route & operator info for SMS
     const trips: any = await sbQuery(
       "trips",
       `id=eq.${booking.trip_id}&select=*,routes(origin,destination),operators:operator_id(name)`
@@ -261,13 +261,7 @@ Show this SMS when boarding.
 
 Support: +265982972977`;
 
-    await sbPost("sms_logs", {
-      phone: booking.phone,
-      message: smsMessage,
-      sms_type: "booking_confirmed",
-      status: "queued",
-      booking_id: booking.id,
-    });
+    await sendSMS(booking.phone, smsMessage, booking.id);
 
     console.log("Booking confirmed:", booking.ticket_code, "Seat:", confirmResult.seat_number);
 
