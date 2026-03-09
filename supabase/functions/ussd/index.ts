@@ -1,77 +1,68 @@
-// BusLink Malawi USSD Edge Function
-// Deployed and synced with frontend
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js";
 
-const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(
+  Deno.env.get("SUPABASE_URL")!,
+  Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+);
 
 const SUPPORT_NUMBER = "+265982972977";
 
-// Freeflow responses
-function CON(message: string) {
-  return new Response(message, {
-    headers: { "Content-Type": "text/plain", "Freeflow": "FC" },
-  });
+// ----------------------------
+// USSD Response Helpers
+// ----------------------------
+function CON(msg: string) {
+  return new Response(`CON ${msg}`, { headers: { "Content-Type": "text/plain" } });
+}
+function END(msg: string) {
+  return new Response(`END ${msg}`, { headers: { "Content-Type": "text/plain" } });
 }
 
-function END(message: string) {
-  return new Response(message, {
-    headers: { "Content-Type": "text/plain", "Freeflow": "FB" },
-  });
-}
+// ----------------------------
+// Supabase Edge Function Export
+// ----------------------------
+export default async function handler(req: Request) {
+  try {
+    const { sessionId, serviceCode, phoneNumber, text } = await req.json();
+    const inputs = text === "" ? [] : text.split("*");
+    const level = inputs.length;
 
-Deno.serve(async (req) => {
-  const { sessionId, serviceCode, phoneNumber, text } = await req.json();
+    // ----------------------------
+    // Check agent
+    // ----------------------------
+    const { data: agent } = await supabase
+      .from("agents")
+      .select("*")
+      .eq("phone", phoneNumber)
+      .single()
+      .catch(() => ({ data: null }));
+    const isAgent = !!agent;
 
-  const inputs = text === "" ? [] : text.split("*");
-  const level = inputs.length;
-
-  let response = "";
-
-  // =============================
-  // CHECK IF AGENT
-  // =============================
-
-  const { data: agent } = await supabase
-    .from("agents")
-    .select("*")
-    .eq("phone", phoneNumber)
-    .maybeSingle();
-
-  const isAgent = !!agent;
-
-  // =============================
-  // MAIN MENU
-  // =============================
-
-  if (text === "") {
-    if (isAgent) {
-      response = `CON BusTicket Malawi
+    // ----------------------------
+    // MAIN MENU
+    // ----------------------------
+    if (text === "") {
+      const menu = isAgent
+        ? `BusTicket Malawi
 1. Book Ticket
 2. My Tickets
 3. Change Ticket
 4. Cancel Ticket
 5. My Commissions
-6. Help`;
-    } else {
-      response = `CON BusTicket Malawi
+6. Help`
+        : `BusTicket Malawi
 1. Book Ticket
 2. My Tickets
 3. Change Ticket
 4. Cancel Ticket
 5. Help`;
+      return CON(menu);
     }
-  }
 
-  // =============================
-  // HELP MENU
-  // =============================
-
-  else if ((!isAgent && inputs[0] == "5") || (isAgent && inputs[0] == "6")) {
-    response = `END BusTicket Malawi Help
+    // ----------------------------
+    // HELP MENU
+    // ----------------------------
+    if ((!isAgent && inputs[0] === "5") || (isAgent && inputs[0] === "6")) {
+      return END(`BusTicket Malawi Help
 
 Book Ticket:
 Select route and trip then pay via Airtel Money or Mpamba.
@@ -82,109 +73,74 @@ Enter ticket code and select new trip.
 Cancel Ticket:
 Enter ticket code to cancel. Admin fee may apply.
 
-Support:
-${SUPPORT_NUMBER}`;
-  }
+Support: ${SUPPORT_NUMBER}`);
+    }
 
-  // =============================
-  // BOOK TICKET - SELECT ROUTE
-  // =============================
-
-  else if (inputs[0] == "1" && level == 1) {
-    const { data: routes } = await supabase
-      .from("routes")
-      .select("id, origin, destination");
-
-    let menu = "CON Select Route\n";
-
-    routes?.forEach((r: any, i: number) => {
-      menu += `${i + 1}. ${r.origin} → ${r.destination}\n`;
-    });
-
-    response = menu;
-  }
-
-  // =============================
-  // TICKET TYPE
-  // =============================
-
-  else if (inputs[0] == "1" && level == 2) {
-    response = `CON Ticket Type
+    // ----------------------------
+    // BOOKING FLOW
+    // ----------------------------
+    if (inputs[0] === "1") {
+      switch (level) {
+        case 1: {
+          // Step 1: Select Route
+          const { data: routes } = await supabase
+            .from("routes")
+            .select("id, origin, destination")
+            .eq("status", "active");
+          if (!routes?.length) return END("No routes available.");
+          let menu = "Select Route\n";
+          routes.forEach((r, i) => (menu += `${i + 1}. ${r.origin} → ${r.destination}\n`));
+          return CON(menu);
+        }
+        case 2:
+          // Step 2: Ticket Type
+          return CON(`Ticket Type
 1. One Way
-2. Return`;
-  }
+2. Return`);
+        case 3: {
+          // Step 3: Select Trip
+          const routeIndex = parseInt(inputs[1]) - 1;
+          const { data: routes } = await supabase.from("routes").select("*");
+          const route = routes?.[routeIndex];
+          if (!route) return END("Invalid route.");
 
-  // =============================
-  // SELECT TRIP
-  // =============================
+          const { data: trips } = await supabase
+            .from("trips")
+            .select(
+              "id, travel_date, departure_time, available_seats, one_way_price, return_price"
+            )
+            .eq("route_id", route.id)
+            .eq("status", "active");
 
-  else if (inputs[0] == "1" && level == 3) {
-    const routeIndex = parseInt(inputs[1]) - 1;
+          if (!trips?.length) return END("No trips available.");
+          let menu = "Select Trip\n";
+          trips.forEach((t, i) => {
+            const price = inputs[1] === "2" ? t.return_price : t.one_way_price;
+            menu += `${i + 1}. ${t.travel_date} ${t.departure_time} MWK ${price}\n`;
+          });
+          return CON(menu);
+        }
+        case 4:
+          return CON("Enter Passenger Name");
+        case 5: {
+          // Confirm Booking
+          const routeIndex = parseInt(inputs[1]) - 1;
+          const tripIndex = parseInt(inputs[3]) - 1;
+          const passengerName = inputs[4];
 
-    const { data: routes } = await supabase.from("routes").select("*");
-    const route = routes?.[routeIndex];
+          const { data: routes } = await supabase.from("routes").select("*");
+          const route = routes?.[routeIndex];
+          const { data: trips } = await supabase
+            .from("trips")
+            .select("*")
+            .eq("route_id", route?.id);
+          const trip = trips?.[tripIndex];
+          if (!trip) return END("Invalid trip selection.");
 
-    if (!route) {
-      return END("Invalid route selection.");
-    }
+          const price = inputs[1] === "2" ? trip.return_price : trip.one_way_price;
+          const operatorName = "Bus";
 
-    const { data: trips } = await supabase
-      .from("trips")
-      .select("id, travel_date, departure_time, available_seats, routes(one_way_price, return_price)")
-      .eq("route_id", route.id)
-      .eq("status", "active")
-      .gte("travel_date", new Date().toISOString().split("T")[0]);
-
-    if (!trips?.length) {
-      return END("No trips available for this route.");
-    }
-
-    let menu = "CON Select Trip\n";
-
-    trips?.forEach((t: any, i: number) => {
-      const price = inputs[1] == "2" ? t.routes?.return_price : t.routes?.one_way_price;
-      menu += `${i + 1}. ${t.travel_date} ${t.departure_time} MWK ${price}\n`;
-    });
-
-    response = menu;
-  }
-
-  // =============================
-  // PASSENGER NAME
-  // =============================
-
-  else if (inputs[0] == "1" && level == 4) {
-    response = `CON Enter Passenger Name`;
-  }
-
-  // =============================
-  // CONFIRM BOOKING
-  // =============================
-
-  else if (inputs[0] == "1" && level == 5) {
-    const passengerName = inputs[4];
-
-    const routeIndex = parseInt(inputs[1]) - 1;
-    const tripIndex = parseInt(inputs[3]) - 1;
-
-    const { data: routes } = await supabase.from("routes").select("*");
-    const route = routes?.[routeIndex];
-
-    const { data: trips } = await supabase
-      .from("trips")
-      .select("*, routes(one_way_price, return_price)")
-      .eq("route_id", route?.id);
-
-    const trip = trips?.[tripIndex];
-
-    if (!trip) {
-      return END("Invalid trip selection.");
-    }
-
-    const price = inputs[1] == "2" ? trip.routes?.return_price : trip.routes?.one_way_price;
-    const operatorName = trip.operators?.name || "Bus";
-
-    response = `CON Confirm Booking
+          let menu = `Confirm Booking
 Passenger: ${passengerName}
 Route: ${route?.origin} → ${route?.destination}
 Operator: ${operatorName}
@@ -195,208 +151,232 @@ Price: MWK ${price}
 1. Confirm
 2. Cancel`;
 
-  // =============================
-  // FINAL BOOKING - CREATE
-  // =============================
+          return CON(menu);
+        }
+        case 6: {
+          // Final booking
+          if (inputs[5] !== "1") return END("Booking cancelled.");
 
-  else if (inputs[0] == "1" && level == 6 && inputs[5] == "1") {
-    const passengerName = inputs[4];
+          const routeIndex = parseInt(inputs[1]) - 1;
+          const tripIndex = parseInt(inputs[3]) - 1;
+          const passengerName = inputs[4];
 
-    const routeIndex = parseInt(inputs[1]) - 1;
-    const tripIndex = parseInt(inputs[3]) - 1;
+          const { data: routes } = await supabase.from("routes").select("*");
+          const route = routes?.[routeIndex];
 
-    const { data: routes } = await supabase.from("routes").select("*");
-    const route = routes?.[routeIndex];
+          const { data: trips } = await supabase
+            .from("trips")
+            .select("*")
+            .eq("route_id", route?.id);
+          const trip = trips?.[tripIndex];
+          if (!trip) return END("Trip not found.");
+          if (trip.available_seats <= 0) return END("No seats available.");
 
-    const { data: trips } = await supabase
-      .from("trips")
-      .select("*, routes(one_way_price, return_price, operator_id, operators:operator_id(name, phone))")
-      .eq("route_id", route?.id);
+          const price = inputs[1] === "2" ? trip.return_price : trip.one_way_price;
+          const ticketCode = "BTM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    const trip = trips?.[tripIndex];
+          // Lock seat
+          await supabase.from("trips").update({ available_seats: trip.available_seats - 1 }).eq("id", trip.id);
 
-    if (!trip) {
-      return END("Trip not found.");
-    }
+          // Insert booking
+          const { data: booking } = await supabase
+            .from("bookings")
+            .insert({
+              ticket_code: ticketCode,
+              passenger_name: passengerName,
+              phone: phoneNumber,
+              route_id: route?.id,
+              trip_id: trip.id,
+              travel_date: trip.travel_date,
+              departure_time: trip.departure_time,
+              amount: price,
+              booked_by_type: isAgent ? "agent" : "user",
+              booked_by_phone: phoneNumber,
+              status: "pending_payment",
+            })
+            .select()
+            .single();
 
-    // Check available seats
-    if (trip.available_seats <= 0) {
-      return END("Sorry, no seats available for this trip.");
-    }
+          // Agent commission
+          if (isAgent && agent) {
+            const commission = price * ((agent.commission_rate || 10) / 100);
+            await supabase.from("commissions").insert({
+              agent_id: agent.id,
+              agent_phone: phoneNumber,
+              booking_id: booking.id,
+              ticket_code: ticketCode,
+              amount: price,
+              commission_rate: agent.commission_rate || 10,
+              commission_amount: commission,
+              status: "pending",
+            });
+          }
+else if (inputs[0] == "1" && level == 6 && inputs[5] == "1") {
+  const passengerName = inputs[4];
+  const routeIndex = parseInt(inputs[1]) - 1;
+  const tripIndex = parseInt(inputs[3]) - 1;
 
-    const price = inputs[1] == "2" ? trip.routes?.return_price : trip.routes?.one_way_price;
-    const operatorPhone = trip.operators?.phone || null;
+  const { data: routes } = await supabase.from("routes").select("*");
+  const route = routes?.[routeIndex];
 
-    const ticketCode =
-      "BTM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
+  const { data: trips } = await supabase
+    .from("trips")
+    .select("*")
+    .eq("route_id", route?.id);
+  const trip = trips?.[tripIndex];
+  if (!trip) return END("Trip not found.");
+  if (trip.available_seats <= 0) return END("No seats available.");
 
-    // Create booking with pending_payment status
-    const { data: booking, error: bookErr } = await supabase
-      .from("bookings")
-      .insert({
-        ticket_code: ticketCode,
-        passenger_name: passengerName,
-        phone: phoneNumber,
-        route_id: route?.id,
-        trip_id: trip.id,
-        travel_date: trip.travel_date,
-        departure_time: trip.departure_time,
-        amount: price,
-        operator_phone: operatorPhone,
-        booked_by_type: isAgent ? "agent" : "user",
-        booked_by_phone: phoneNumber,
-        status: "pending_payment",
-      })
-      .select()
-      .single();
+  const price = inputs[1] == "2" ? trip.return_price : trip.one_way_price;
+  const ticketCode = "BTM-" + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    if (bookErr || !booking) {
-      console.error("Booking error:", bookErr);
-      return END("Booking failed. Please try again.");
-    }
+  // Lock seat
+  await supabase.from("trips").update({ available_seats: trip.available_seats - 1 }).eq("id", trip.id);
 
-    // Record agent commission
-    if (isAgent && agent) {
-      const commissionRate = agent.commission_rate || 10;
-      const commission = price * (commissionRate / 100);
-
-      await supabase.from("commissions").insert({
-        agent_id: agent.id,
-        agent_phone: phoneNumber,
-        booking_id: booking.id,
-        ticket_code: ticketCode,
-        amount: price,
-        commission_rate: commissionRate,
-        commission_amount: commission,
-        status: "pending",
-      });
-    }
-
-    // Create payment record
-    await supabase.from("payments").insert({
-      booking_id: booking.id,
-      amount: price,
-      transaction_reference: ticketCode,
-      status: "pending",
-      payment_method: "airtel_money",
-    });
-
-    // Create SMS log
-    await supabase.from("sms_logs").insert({
+  // Insert booking
+  const { data: booking } = await supabase
+    .from("bookings")
+    .insert({
+      ticket_code: ticketCode,
+      passenger_name: passengerName,
       phone: phoneNumber,
-      message: `Booking ${ticketCode} created. Amount: MWK ${price}. Pending payment via Airtel Money.`,
-      sms_type: "booking_created",
-      status: "queued",
-      booking_id: booking.id,
-    });
+      route_id: route?.id,
+      trip_id: trip.id,
+      travel_date: trip.travel_date,
+      departure_time: trip.departure_time,
+      amount: price,
+      booked_by_type: isAgent ? "agent" : "user",
+      booked_by_phone: phoneNumber,
+      status: "pending_payment",
+    })
+    .select()
+    .single();
 
-    // Trigger Mobile Money Payment (mock - replace with real API)
-    const paymentApi = Deno.env.get("PAYMENT_API");
-    if (paymentApi) {
-      try {
-        await fetch(paymentApi, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            phone: phoneNumber,
-            amount: price,
-            reference: ticketCode,
-          }),
+  // Agent commission
+  if (isAgent && agent) {
+    const commission = price * ((agent.commission_rate || 10) / 100);
+    await supabase.from("commissions").insert({
+      agent_id: agent.id,
+      agent_phone: phoneNumber,
+      booking_id: booking.id,
+      ticket_code: ticketCode,
+      amount: price,
+      commission_rate: agent.commission_rate || 10,
+      commission_amount: commission,
+      status: "pending",
+    });
+  }
+
+  // SMS log
+  await supabase.from("sms_logs").insert({
+    phone: phoneNumber,
+    message: `Booking ${ticketCode} created. Amount: MWK ${price}. Payment request sent.`,
+    sms_type: "booking_created",
+    status: "queued",
+    booking_id: booking.id,
+  });
+
+  // ----------------------------
+  // Live Mobile Money Payment
+  // ----------------------------
+  const paymentApi = Deno.env.get("PAYMENT_API"); // Airtel/Mpamba endpoint
+  if (paymentApi) {
+    try {
+      const paymentResp = await fetch(paymentApi, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: phoneNumber,
+          amount: price,
+          reference: ticketCode,
+          description: `BusTicket ${ticketCode}`,
+        }),
+      });
+
+      const paymentResult = await paymentResp.json();
+
+      // Update booking if immediately paid
+      if (paymentResult.status === "success") {
+        await supabase.from("bookings").update({ status: "paid" }).eq("id", booking.id);
+
+        // SMS confirmation
+        await supabase.from("sms_logs").insert({
+          phone: phoneNumber,
+          message: `Booking ${ticketCode} confirmed! Amount MWK ${price} received.`,
+          sms_type: "payment_confirmed",
+          status: "queued",
+          booking_id: booking.id,
         });
-      } catch (e) {
-        console.log("Payment API not available:", e);
+
+        return END(`Booking Confirmed!\nTicket: ${ticketCode}\nAmount MWK ${price}`);
+      }
+
+    } catch (err) {
+      console.error("Payment API error:", err);
+    }
+  }
+
+  // Fallback: pending payment
+  return END(`Payment Request Sent!\nTicket: ${ticketCode}\nAmount: MWK ${price}\nCheck your phone to complete payment.`);
+}
+          // SMS log
+          await supabase.from("sms_logs").insert({
+            phone: phoneNumber,
+            message: `Booking ${ticketCode} created. Amount: MWK ${price}. Pending payment.`,
+            sms_type: "booking_created",
+            status: "queued",
+            booking_id: booking.id,
+          });
+
+          return END(`Payment request sent!
+Ticket: ${ticketCode}
+Amount: MWK ${price}
+Check your phone for payment.`);
+        }
       }
     }
 
-    // Return pending message - WAIT for payment callback to confirm
-    // The payment-callback function will call confirm_booking when payment is received
-    response = `END Payment Request Sent!
+    // ----------------------------
+    // VIEW TICKETS
+    // ----------------------------
+    if (inputs[0] === "2") {
+      const { data: tickets } = await supabase
+        .from("bookings")
+        .select("ticket_code, passenger_name, travel_date, departure_time, seat_number, status")
+        .eq("phone", phoneNumber)
+        .order("created_at", { ascending: false });
 
-Ticket: ${ticketCode}
-Amount: MWK ${price}
+      if (!tickets?.length) return END(`No tickets found.\nSupport ${SUPPORT_NUMBER}`);
 
-Check your phone for payment prompt.
-Enter PIN to complete.
-
-You will receive SMS when confirmed.`;
-  }
-
-  // =============================
-  // VIEW TICKETS
-  // =============================
-
-  else if (inputs[0] == "2") {
-    const { data: tickets } = await supabase
-      .from("bookings")
-      .select("*, routes:route_id(origin, destination)")
-      .eq("phone", phoneNumber)
-      .in("status", ["paid", "pending_payment", "pending"])
-      .order("created_at", { ascending: false })
-      .limit(5);
-
-    if (!tickets?.length) {
-      return END(`No tickets found.\nSupport ${SUPPORT_NUMBER}`);
+      let msg = "Your Tickets\n";
+      tickets.forEach((t: any) => {
+        msg += `Ticket: ${t.ticket_code}\nPassenger: ${t.passenger_name}\nDate: ${t.travel_date} ${t.departure_time}\nSeat: ${t.seat_number || "Pending"}\nStatus: ${t.status}\n\n`;
+      });
+      return END(msg);
     }
 
-    let msg = "END Your Tickets\n\n";
+    // ----------------------------
+    // CHANGE TICKET
+    // ----------------------------
+    if (inputs[0] === "3") return END(`Ticket change request.\nContact support: ${SUPPORT_NUMBER}`);
 
-    tickets.forEach((t: any) => {
-      msg += `Ticket: ${t.ticket_code}\n`;
-      msg += `Passenger: ${t.passenger_name}\n`;
-      msg += `Route: ${t.routes?.origin} → ${t.routes?.destination}\n`;
-      msg += `Date: ${t.travel_date} ${t.departure_time}\n`;
-      msg += `Seat: ${t.seat_number || "Pending"}\n`;
-      msg += `Status: ${t.status}\n\n`;
-    });
+    // ----------------------------
+    // CANCEL TICKET
+    // ----------------------------
+    if (inputs[0] === "4") return END(`Ticket cancellation request.\nContact support: ${SUPPORT_NUMBER}`);
 
-    response = msg;
+    // ----------------------------
+    // AGENT COMMISSIONS
+    // ----------------------------
+    if (isAgent && inputs[0] === "5") {
+      const { data: commissions } = await supabase.from("commissions").select("*").eq("agent_phone", phoneNumber);
+      const total = commissions?.reduce((a, b) => a + Number(b.commission_amount || 0), 0) || 0;
+      return END(`Your Commissions\nMWK ${total}\nSupport: ${SUPPORT_NUMBER}`);
+    }
+
+    return END(`Invalid option.\nSupport: ${SUPPORT_NUMBER}`);
+  } catch (err) {
+    console.error(err);
+    return END(`An error occurred.\nSupport: ${SUPPORT_NUMBER}`);
   }
-
-  // =============================
-  // CHANGE TICKET
-  // =============================
-
-  else if (inputs[0] == "3") {
-    response = `END Ticket change request.
-Contact support:
-${SUPPORT_NUMBER}`;
-  }
-
-  // =============================
-  // CANCEL TICKET
-  // =============================
-
-  else if (inputs[0] == "4") {
-    response = `END Ticket cancellation request.
-Contact support:
-${SUPPORT_NUMBER}`;
-  }
-
-  // =============================
-  // AGENT COMMISSIONS
-  // =============================
-
-  else if (isAgent && inputs[0] == "5") {
-    const { data: commissions } = await supabase
-      .from("commissions")
-      .select("amount, status")
-      .eq("agent_phone", phoneNumber);
-
-    const total = commissions?.reduce((a, b) => a + Number(b.commission_amount || 0), 0) || 0;
-    const pending = commissions?.filter((c: any) => c.status === "pending").reduce((a, b) => a + Number(b.commission_amount || 0), 0) || 0;
-
-    response = `END Your Commissions
-Total: MWK ${total.toFixed(0)}
-Pending: MWK ${pending.toFixed(0)}
-
-Contact support: ${SUPPORT_NUMBER}`;
-  }
-
-  else {
-    response = `END Invalid option.\nSupport: ${SUPPORT_NUMBER}`;
-  }
-
-  return new Response(response, {
-    headers: { "Content-Type": "text/plain" },
-  });
-});
+}
