@@ -382,14 +382,14 @@ export default function OrganizationSettings() {
                       canManageSettings: 'Manage settings',
                       canViewAuditLogs: 'View audit logs',
                     }).filter(([key]) => {
-                      const permissions: Record<string, boolean> = {
+                      const permissionsMap: Record<string, Record<string, boolean>> = {
                         owner: { canManageUsers: true, canManageFleet: true, canManageRoutes: true, canManageTrips: true, canViewFinancials: true, canManageFinancials: true, canViewAnalytics: true, canManageSettings: true, canViewAuditLogs: true },
                         manager: { canManageUsers: true, canManageFleet: true, canManageRoutes: true, canManageTrips: true, canViewFinancials: true, canManageFinancials: false, canViewAnalytics: true, canManageSettings: true, canViewAuditLogs: true },
                         operations: { canManageUsers: false, canManageFleet: true, canManageRoutes: true, canManageTrips: true, canViewFinancials: false, canManageFinancials: false, canViewAnalytics: true, canManageSettings: false, canViewAuditLogs: false },
                         finance: { canManageUsers: false, canManageFleet: false, canManageRoutes: false, canManageTrips: false, canViewFinancials: true, canManageFinancials: true, canViewAnalytics: true, canManageSettings: false, canViewAuditLogs: true },
                         agent: { canManageUsers: false, canManageFleet: false, canManageRoutes: false, canManageTrips: true, canViewFinancials: false, canManageFinancials: false, canViewAnalytics: false, canManageSettings: false, canViewAuditLogs: false },
                       };
-                      return permissions[role]?.[key];
+                      return permissionsMap[role]?.[key];
                     }).map(([key, label]) => (
                       <li key={key} className="flex items-center gap-2">
                         <span className="text-green-500">✓</span>

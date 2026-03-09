@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,25 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, Wrench, Calendar, Bus, DollarSign, Clock, AlertTriangle, CheckCircle, Plus, Trash2 } from "lucide-react";
+import { Loader2, Wrench, Calendar, Bus, DollarSign, AlertTriangle, CheckCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
-interface Bus {
-  id: string;
-  plate_number: string;
-}
-
-interface MaintenanceLog {
-  id: string;
-  bus_id: string;
-  maintenance_type: string;
-  description: string | null;
-  cost: number | null;
-  performed_date: string | null;
-  next_due_date: string | null;
-  status: string;
-  created_at: string;
-}
+interface BusItem { id: string; plate_number: string; }
+interface MaintenanceLog { id: string; bus_id: string; maintenance_type: string; description: string | null; cost: number | null; performed_date: string | null; next_due_date: string | null; status: string; }
 
 const MAINTENANCE_TYPES = [
   { value: 'routine', label: 'Routine Service' },
@@ -43,236 +29,91 @@ const MAINTENANCE_TYPES = [
 
 const MaintenanceScheduling = () => {
   const { operator } = useAuth();
-  const [buses, setBuses] = useState<Bus[]>([]);
+  const [buses, setBuses] = useState<BusItem[]>([]);
   const [maintenanceLogs, setMaintenanceLogs] = useState<MaintenanceLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("upcoming");
-
-  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedBusId, setSelectedBusId] = useState("");
-  const [maintForm, setMaintForm] = useState({
-    maintenance_type: "",
-    description: "",
-    cost: "",
-    performed_date: "",
-    next_due_date: "",
-  });
+  const [maintForm, setMaintForm] = useState({ maintenance_type: "", description: "", cost: "", performed_date: "", next_due_date: "" });
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (operator) {
-      fetchData();
-    }
-  }, [operator, operator?.id]);
+  useEffect(() => { if (operator) fetchData(); }, [operator, operator?.id]);
 
   const fetchData = async () => {
     setLoading(true);
-    try {
-      // Get buses for this operator
-      const { data: busesData } = await supabase
-        .from("buses")
-        .select("id, plate_number")
-        .eq("operator_id", operator?.id);
-      setBuses(busesData || []);
-
-      const busIds = busesData?.map(b => b.id) || [];
-      
-      if (busIds.length > 0) {
-        // Get maintenance logs
-        const { data: maintData } = await supabase
-          .from("maintenance_logs")
-          .select("*")
-          .in("bus_id", busIds)
-          .order("next_due_date", { ascending: true });
-        setMaintenanceLogs(maintData || []);
-      } else {
-        setMaintenanceLogs([]);
-      }
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
+    const { data: busesData } = await supabase.from("buses").select("id, plate_number").eq("operator_id", operator?.id);
+    setBuses(busesData || []);
+    const busIds = busesData?.map(b => b.id) || [];
+    if (busIds.length > 0) {
+      const { data } = await supabase.from("maintenance_logs").select("*").in("bus_id", busIds).order("next_due_date", { ascending: true });
+      setMaintenanceLogs(data || []);
+    } else { setMaintenanceLogs([]); }
     setLoading(false);
   };
 
-  const getBusPlate = (busId: string) => {
-    const bus = buses.find(b => b.id === busId);
-    return bus?.plate_number || "Unknown";
-  };
+  const getBusPlate = (id: string) => buses.find(b => b.id === id)?.plate_number || "Unknown";
+  const getDaysUntilDue = (d: string | null) => d ? Math.ceil((new Date(d).getTime() - Date.now()) / (1000*60*60*24)) : null;
 
-  const getDaysUntilDue = (dueDate: string | null) => {
-    if (!dueDate) return null;
-    const due = new Date(dueDate);
-    const today = new Date();
-    const days = Math.ceil((due.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-    return days;
-  };
-
-  const getDueStatus = (dueDate: string | null, performedDate: string | null) => {
-    if (performedDate) return { status: "completed", label: "Completed", variant: "default" as const, color: "bg-green-50" };
-    if (!dueDate) return { status: "scheduled", label: "Scheduled", variant: "secondary" as const, color: "" };
-    
+  const getDueStatus = (dueDate: string | null, performed: string | null) => {
+    if (performed) return { label: "Completed", variant: "default" as const, color: "bg-green-50" };
     const days = getDaysUntilDue(dueDate);
-    if (days === null) return { status: "unknown", label: "Unknown", variant: "secondary" as const, color: "" };
-    
-    if (days < 0) return { status: "overdue", label: `${Math.abs(days)} days overdue`, variant: "destructive" as const, color: "bg-red-50" };
-    if (days <= 7) return { status: "urgent", label: `${days} days - Urgent`, variant: "destructive" as const, color: "bg-red-50" };
-    if (days <= 30) return { status: "upcoming", label: `${days} days`, variant: "outline" as const, color: "bg-amber-50" };
-    return { status: "scheduled", label: `${days} days`, variant: "secondary" as const, color: "" };
+    if (days === null) return { label: "Scheduled", variant: "secondary" as const, color: "" };
+    if (days < 0) return { label: `${Math.abs(days)}d overdue`, variant: "destructive" as const, color: "bg-red-50" };
+    if (days <= 7) return { label: `${days}d - Urgent`, variant: "destructive" as const, color: "bg-red-50" };
+    if (days <= 30) return { label: `${days}d`, variant: "outline" as const, color: "bg-amber-50" };
+    return { label: `${days}d`, variant: "secondary" as const, color: "" };
   };
 
   const handleSaveMaintenance = async () => {
-    if (!selectedBusId || !maintForm.maintenance_type) {
-      toast.error("Please fill required fields");
-      return;
-    }
-
+    if (!operator || !selectedBusId || !maintForm.maintenance_type) { toast.error("Fill required fields"); return; }
     setSaving(true);
-    try {
-      await supabase.from("maintenance_logs").insert({
-        bus_id: selectedBusId,
-        maintenance_type: maintForm.maintenance_type,
-        description: maintForm.description || null,
-        cost: maintForm.cost ? parseFloat(maintForm.cost) : null,
-        performed_date: maintForm.performed_date || null,
-        next_due_date: maintForm.next_due_date || null,
-        status: maintForm.performed_date ? "completed" : "scheduled",
-      });
-
-      toast.success("Maintenance scheduled");
-      setDialogOpen(false);
-      resetForm();
-      fetchData();
-    } catch (error) {
-      toast.error("Failed to schedule maintenance");
-    }
-    setSaving(false);
-  };
-
-  const deleteMaintenance = async (maintId: string) => {
-    if (!confirm("Delete this maintenance record?")) return;
-    
-    try {
-      await supabase.from("maintenance_logs").delete().eq("id", maintId);
-      toast.success("Maintenance record deleted");
-      fetchData();
-    } catch (error) {
-      toast.error("Failed to delete record");
-    }
-  };
-
-  const markAsCompleted = async (maintId: string) => {
-    try {
-      await supabase
-        .from("maintenance_logs")
-        .update({ status: "completed", performed_date: new Date().toISOString().split('T')[0] })
-        .eq("id", maintId);
-      toast.success("Marked as completed");
-      fetchData();
-    } catch (error) {
-      toast.error("Failed to update");
-    }
-  };
-
-  const resetForm = () => {
-    setSelectedBusId("");
-    setMaintForm({
-      maintenance_type: "",
-      description: "",
-      cost: "",
-      performed_date: "",
-      next_due_date: "",
+    await supabase.from("maintenance_logs").insert({
+      bus_id: selectedBusId, operator_id: operator.id,
+      maintenance_type: maintForm.maintenance_type, description: maintForm.description || null,
+      cost: maintForm.cost ? parseFloat(maintForm.cost) : null,
+      performed_date: maintForm.performed_date || null, next_due_date: maintForm.next_due_date || null,
+      status: maintForm.performed_date ? "completed" : "scheduled",
     });
+    toast.success("Maintenance scheduled"); setDialogOpen(false);
+    setSelectedBusId(""); setMaintForm({ maintenance_type: "", description: "", cost: "", performed_date: "", next_due_date: "" });
+    fetchData(); setSaving(false);
   };
 
-  // Calculate stats
+  const deleteMaintenance = async (id: string) => {
+    if (!confirm("Delete?")) return;
+    await supabase.from("maintenance_logs").delete().eq("id", id);
+    toast.success("Deleted"); fetchData();
+  };
+
+  const markAsCompleted = async (id: string) => {
+    await supabase.from("maintenance_logs").update({ status: "completed", performed_date: new Date().toISOString().split('T')[0] }).eq("id", id);
+    toast.success("Completed"); fetchData();
+  };
+
   const completedLogs = maintenanceLogs.filter(l => l.status === "completed");
   const upcomingLogs = maintenanceLogs.filter(l => !l.performed_date && l.next_due_date);
-  const overdueLogs = maintenanceLogs.filter(l => {
-    const days = getDaysUntilDue(l.next_due_date);
-    return days !== null && days < 0 && !l.performed_date;
-  });
-  const totalCost = completedLogs.reduce((sum, l) => sum + (l.cost || 0), 0);
+  const overdueLogs = maintenanceLogs.filter(l => { const d = getDaysUntilDue(l.next_due_date); return d !== null && d < 0 && !l.performed_date; });
+  const totalCost = completedLogs.reduce((s, l) => s + (l.cost || 0), 0);
 
-  const getFilteredLogs = () => {
-    switch (activeTab) {
-      case "completed": return maintenanceLogs.filter(l => l.status === "completed");
-      case "upcoming": return maintenanceLogs.filter(l => !l.performed_date);
-      case "overdue": return maintenanceLogs.filter(l => {
-        const days = getDaysUntilDue(l.next_due_date);
-        return days !== null && days < 0 && !l.performed_date;
-      });
-      default: return maintenanceLogs;
-    }
+  const getFiltered = () => {
+    switch (activeTab) { case "completed": return completedLogs; case "upcoming": return upcomingLogs; case "overdue": return overdueLogs; default: return maintenanceLogs; }
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <Wrench className="h-6 w-6" />
-            Maintenance Scheduling
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Schedule and track bus maintenance
-          </p>
-        </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Schedule Maintenance
-        </Button>
+        <div><h1 className="text-2xl font-bold flex items-center gap-2"><Wrench className="h-6 w-6" />Maintenance Scheduling</h1></div>
+        <Button onClick={() => setDialogOpen(true)}><Plus className="mr-2 h-4 w-4" />Schedule</Button>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Records</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{maintenanceLogs.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-red-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-red-600 flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Overdue
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-red-600">{overdueLogs.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-amber-500">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-amber-600 flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              Upcoming
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-amber-600">{upcomingLogs.length}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-green-500" />
-              Total Spent
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">MWK {totalCost.toLocaleString()}</div>
-          </CardContent>
-        </Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm">Total</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">{maintenanceLogs.length}</div></CardContent></Card>
+        <Card className="border-red-500"><CardHeader className="pb-2"><CardTitle className="text-sm text-red-600 flex items-center gap-2"><AlertTriangle className="h-4 w-4" />Overdue</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-red-600">{overdueLogs.length}</div></CardContent></Card>
+        <Card className="border-amber-500"><CardHeader className="pb-2"><CardTitle className="text-sm text-amber-600 flex items-center gap-2"><Calendar className="h-4 w-4" />Upcoming</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold text-amber-600">{upcomingLogs.length}</div></CardContent></Card>
+        <Card><CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2"><DollarSign className="h-4 w-4 text-green-500" />Spent</CardTitle></CardHeader><CardContent><div className="text-3xl font-bold">MWK {totalCost.toLocaleString()}</div></CardContent></Card>
       </div>
 
-      {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="upcoming">Upcoming ({upcomingLogs.length})</TabsTrigger>
@@ -280,191 +121,52 @@ const MaintenanceScheduling = () => {
           <TabsTrigger value="completed">Completed ({completedLogs.length})</TabsTrigger>
           <TabsTrigger value="all">All</TabsTrigger>
         </TabsList>
-
         <TabsContent value={activeTab}>
           <Card>
-            <CardHeader>
-              <CardTitle>
-                {activeTab === "upcoming" && "Upcoming Maintenance"}
-                {activeTab === "overdue" && "Overdue Maintenance"}
-                {activeTab === "completed" && "Completed Maintenance"}
-                {activeTab === "all" && "All Maintenance Records"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="flex justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-              ) : getFilteredLogs().length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  No maintenance records found
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Bus</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Cost</TableHead>
-                      <TableHead>Performed</TableHead>
-                      <TableHead>Next Due</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {getFilteredLogs().map((log) => {
-                      const statusInfo = getDueStatus(log.next_due_date, log.performed_date);
-                      return (
-                        <TableRow key={log.id} className={statusInfo.color}>
-                          <TableCell className="font-medium">
-                            <div className="flex items-center gap-2">
-                              <Bus className="h-4 w-4 text-muted-foreground" />
-                              {getBusPlate(log.bus_id)}
-                            </div>
-                          </TableCell>
-                          <TableCell className="capitalize">
-                            {MAINTENANCE_TYPES.find(t => t.value === log.maintenance_type)?.label || log.maintenance_type}
-                          </TableCell>
-                          <TableCell className="max-w-[150px] truncate">
-                            {log.description || "-"}
-                          </TableCell>
-                          <TableCell>
-                            {log.cost ? `MWK ${log.cost.toLocaleString()}` : "-"}
-                          </TableCell>
-                          <TableCell>
-                            {log.performed_date || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-4 w-4 text-muted-foreground" />
-                              {log.next_due_date || "-"}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={statusInfo.variant}>
-                              {statusInfo.label}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-1">
-                              {!log.performed_date && (
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => markAsCompleted(log.id)}
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </Button>
-                              )}
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="text-destructive"
-                                onClick={() => deleteMaintenance(log.id)}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              )}
+            <CardContent className="pt-6">
+              {loading ? <div className="flex justify-center py-12"><Loader2 className="h-8 w-8 animate-spin" /></div> :
+              getFiltered().length === 0 ? <div className="text-center py-8 text-muted-foreground">No records</div> :
+              <Table>
+                <TableHeader><TableRow><TableHead>Bus</TableHead><TableHead>Type</TableHead><TableHead>Cost</TableHead><TableHead>Performed</TableHead><TableHead>Next Due</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableBody>
+                  {getFiltered().map(log => {
+                    const status = getDueStatus(log.next_due_date, log.performed_date);
+                    return (
+                    <TableRow key={log.id} className={status.color}>
+                      <TableCell className="font-medium"><div className="flex items-center gap-2"><Bus className="h-4 w-4 text-muted-foreground" />{getBusPlate(log.bus_id)}</div></TableCell>
+                      <TableCell className="capitalize">{MAINTENANCE_TYPES.find(t => t.value === log.maintenance_type)?.label || log.maintenance_type}</TableCell>
+                      <TableCell>{log.cost ? `MWK ${log.cost.toLocaleString()}` : "-"}</TableCell>
+                      <TableCell>{log.performed_date || "-"}</TableCell>
+                      <TableCell><div className="flex items-center gap-2"><Calendar className="h-4 w-4 text-muted-foreground" />{log.next_due_date || "-"}</div></TableCell>
+                      <TableCell><Badge variant={status.variant}>{status.label}</Badge></TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-1">
+                          {!log.performed_date && <Button variant="ghost" size="sm" onClick={() => markAsCompleted(log.id)}><CheckCircle className="h-4 w-4" /></Button>}
+                          <Button variant="ghost" size="icon" className="text-destructive" onClick={() => deleteMaintenance(log.id)}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>);
+                  })}
+                </TableBody>
+              </Table>}
             </CardContent>
           </Card>
         </TabsContent>
       </Tabs>
 
-      {/* Add Maintenance Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Schedule Maintenance</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Schedule Maintenance</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Bus</Label>
-              <Select value={selectedBusId} onValueChange={setSelectedBusId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select bus" />
-                </SelectTrigger>
-                <SelectContent>
-                  {buses.map((bus) => (
-                    <SelectItem key={bus.id} value={bus.id}>
-                      {bus.plate_number}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Maintenance Type</Label>
-              <Select value={maintForm.maintenance_type} onValueChange={(v) => setMaintForm({ ...maintForm, maintenance_type: v })}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {MAINTENANCE_TYPES.map((type) => (
-                    <SelectItem key={type.value} value={type.value}>
-                      {type.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label>Description</Label>
-              <Input
-                placeholder="Description of work to be done"
-                value={maintForm.description}
-                onChange={(e) => setMaintForm({ ...maintForm, description: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Estimated Cost (MWK)</Label>
-              <Input
-                type="number"
-                placeholder="0"
-                value={maintForm.cost}
-                onChange={(e) => setMaintForm({ ...maintForm, cost: e.target.value })}
-              />
-            </div>
-
+            <div><Label>Bus</Label><Select value={selectedBusId} onValueChange={setSelectedBusId}><SelectTrigger><SelectValue placeholder="Select bus" /></SelectTrigger><SelectContent>{buses.map(b => <SelectItem key={b.id} value={b.id}>{b.plate_number}</SelectItem>)}</SelectContent></Select></div>
+            <div><Label>Type</Label><Select value={maintForm.maintenance_type} onValueChange={v => setMaintForm({...maintForm, maintenance_type: v})}><SelectTrigger><SelectValue placeholder="Type" /></SelectTrigger><SelectContent>{MAINTENANCE_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent></Select></div>
+            <Input placeholder="Description" value={maintForm.description} onChange={e => setMaintForm({...maintForm, description: e.target.value})} />
+            <Input type="number" placeholder="Cost (MWK)" value={maintForm.cost} onChange={e => setMaintForm({...maintForm, cost: e.target.value})} />
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Performed Date</Label>
-                <Input
-                  type="date"
-                  value={maintForm.performed_date}
-                  onChange={(e) => setMaintForm({ ...maintForm, performed_date: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Next Due Date</Label>
-                <Input
-                  type="date"
-                  value={maintForm.next_due_date}
-                  onChange={(e) => setMaintForm({ ...maintForm, next_due_date: e.target.value })}
-                />
-              </div>
+              <div><Label>Performed</Label><Input type="date" value={maintForm.performed_date} onChange={e => setMaintForm({...maintForm, performed_date: e.target.value})} /></div>
+              <div><Label>Next Due</Label><Input type="date" value={maintForm.next_due_date} onChange={e => setMaintForm({...maintForm, next_due_date: e.target.value})} /></div>
             </div>
-
-            <Button
-              onClick={handleSaveMaintenance}
-              className="w-full"
-              disabled={saving || !selectedBusId || !maintForm.maintenance_type}
-            >
-              {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Schedule Maintenance
-            </Button>
+            <Button onClick={handleSaveMaintenance} className="w-full" disabled={saving || !selectedBusId || !maintForm.maintenance_type}>{saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Schedule</Button>
           </div>
         </DialogContent>
       </Dialog>
