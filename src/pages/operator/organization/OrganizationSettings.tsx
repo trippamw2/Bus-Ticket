@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { UserPlus, Edit, Trash2, Shield } from 'lucide-react';
+import PasswordChangeForm from './PasswordChangeForm';
 
 export default function OrganizationSettings() {
   const { operator } = useAuth();
@@ -192,6 +193,17 @@ export default function OrganizationSettings() {
               </Button>
             </CardContent>
           </Card>
+
+        {/* Password Change Section */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>Change Password</CardTitle>
+            <CardDescription>Update your account password</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PasswordChangeForm />
+          </CardContent>
+        </Card>
         </TabsContent>
 
         <TabsContent value="users">
