@@ -6,7 +6,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { AdminAuthProvider, useAdminAuth } from "@/contexts/AdminAuthContext";
 import Index from "./pages/Index";
-import OperatorRegister from "./pages/OperatorRegister";
 import OperatorLogin from "./pages/operator/OperatorLogin";
 import OperatorDashboard from "./pages/operator/OperatorDashboard";
 import DashboardHome from "./pages/operator/DashboardHome";
@@ -94,9 +93,8 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/" element={<Index />} />
-      <Route path="/register-operator" element={<OperatorRegister />} />
       
-      {/* Operator Auth */}
+      {/* Operator Auth - No self-registration, only admin can create operators */}
       <Route path="/operator/login" element={<OperatorLogin />} />
       
       {/* Operator Dashboard (Protected) */}

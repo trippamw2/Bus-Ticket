@@ -1,10 +1,11 @@
-import { BarChart3, Bus, Map, CalendarPlus, Users, FileText, CreditCard, Settings, LogOut, Menu, X, Wallet, Bell, Shield, ChevronDown, TrendingUp } from "lucide-react";
+import { BarChart3, Bus, Map, CalendarPlus, Users, FileText, CreditCard, Settings, LogOut, Menu, X, Wallet, ChevronDown, TrendingUp, Clock } from "lucide-react";
 import { NavLink } from "@/components/NavLink";
 import { useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 
+// Simplified menu for bus booking operators
 const menuGroups = [
   {
     title: "Overview",
@@ -22,23 +23,23 @@ const menuGroups = [
     ]
   },
   {
-    title: "Business",
+    title: "Bookings",
     items: [
-      { title: "Passengers", url: "/dashboard/passengers", icon: Users },
-      { title: "Bookings", url: "/dashboard/bookings", icon: FileText },
-      { title: "Wallet", url: "/dashboard/wallet", icon: Wallet },
+      { title: "All Bookings", url: "/dashboard/bookings", icon: FileText },
+      { title: "Seat Selection", url: "/dashboard/bookings/seat-selection", icon: Users },
     ]
   },
   {
     title: "Finance",
     items: [
       { title: "Finance", url: "/dashboard/finance", icon: CreditCard },
+      { title: "Wallet", url: "/dashboard/wallet", icon: Wallet },
     ]
   },
   {
     title: "Settings",
     items: [
-      { title: "Settings", url: "/dashboard/settings", icon: Settings },
+      { title: "Organization", url: "/dashboard/organization", icon: Settings },
     ]
   }
 ];
