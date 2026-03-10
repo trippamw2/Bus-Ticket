@@ -1,4 +1,4 @@
-# Welcome to your Lovable project
+# BusLink - USSD Bus Ticketing Platform
 
 ## Project info
 
